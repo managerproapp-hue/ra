@@ -1,7 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useAppContext } from '../context/AppContext';
 import { ResultadoAprendizaje, CriterioEvaluacion } from '../types';
 import { PlusIcon, PencilIcon, TrashIcon, ChevronDownIcon, ChevronRightIcon, SaveIcon, XIcon, FileTextIcon } from '../components/icons';
+import { calculateRADashboardSummary, calculateRAProgress, getStudentHighlights } from '../services/dashboardAnalytics';
+
+import SummaryStats from '../components/RADashboard/SummaryStats';
+import RAProgress from '../components/RADashboard/RAProgress';
+import StudentHighlights from '../components/RADashboard/StudentHighlights';
+import Alerts from '../components/RADashboard/Alerts';
+import QuickActions from '../components/RADashboard/QuickActions';
+
 
 interface FormModalProps {
     isOpen: boolean;
@@ -104,9 +112,15 @@ const FormModal: React.FC<FormModalProps> = ({ isOpen, onClose, onSave, initialD
 };
 
 const RAView: React.FC = () => {
-    const { resultadosAprendizaje, setResultadosAprendizaje, criteriosEvaluacion, setCriteriosEvaluacion, addToast } = useAppContext();
+    const { students, practicalExamEvaluations, resultadosAprendizaje, setResultadosAprendizaje, criteriosEvaluacion, setCriteriosEvaluacion, addToast } = useAppContext();
     const [expandedRAs, setExpandedRAs] = useState<Set<string>>(new Set());
     const [modalState, setModalState] = useState<{ isOpen: boolean; type: 'ra' | 'criterio' | null; data: any; parentRaId?: string | null }>({ isOpen: false, type: null, data: null });
+    
+    // Dashboard calculations
+    const summary = useMemo(() => calculateRADashboardSummary(students, practicalExamEvaluations), [students, practicalExamEvaluations]);
+    const raProgress = useMemo(() => calculateRAProgress(practicalExamEvaluations), [practicalExamEvaluations]);
+    const highlights = useMemo(() => getStudentHighlights(students, practicalExamEvaluations), [students, practicalExamEvaluations]);
+
 
     const toggleExpand = (raId: string) => {
         setExpandedRAs(prev => {
@@ -176,21 +190,44 @@ const RAView: React.FC = () => {
 
     return (
         <div>
-            <header className="flex justify-between items-center mb-6">
-                 <div>
-                    <h1 className="text-3xl font-bold text-gray-800 flex items-center">
-                        <FileTextIcon className="w-8 h-8 mr-3 text-purple-500" />
-                        Gestión de Resultados de Aprendizaje
-                    </h1>
-                    <p className="text-gray-500 mt-1">Define la estructura de evaluación para tus exámenes prácticos.</p>
+            <header className="mb-8">
+                <h1 className="text-3xl font-bold text-gray-800 flex items-center">
+                    <FileTextIcon className="w-8 h-8 mr-3 text-purple-500" />
+                    Resultados de Aprendizaje (RA)
+                </h1>
+                <p className="text-gray-500 mt-1">Dashboard de rendimiento y gestión de la estructura de evaluación.</p>
+            </header>
+
+            {/* Dashboard Section */}
+            <div className="mb-8">
+                <h2 className="text-xl font-bold text-gray-700 mb-4">Dashboard de Exámenes Prácticos</h2>
+                <SummaryStats summary={summary} />
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mt-4">
+                    <div className="lg:col-span-2">
+                        <RAProgress raProgressData={raProgress} />
+                    </div>
+                    <div>
+                        <QuickActions />
+                    </div>
                 </div>
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mt-4">
+                     <div className="lg:col-span-2">
+                        <StudentHighlights highlights={highlights} />
+                    </div>
+                    <div>
+                        <Alerts />
+                    </div>
+                </div>
+            </div>
+
+            {/* Management Section */}
+            <div className="flex justify-between items-center mb-6 mt-12 pt-6 border-t">
+                <h2 className="text-xl font-bold text-gray-700">Gestión de Rúbricas</h2>
                 <button onClick={() => handleOpenModal('ra', { id: `ra_${Date.now()}`, nombre: '', descripcion: '', competencias: [], criteriosEvaluacion: [] })} className="flex items-center bg-green-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-green-600 transition">
                     <PlusIcon className="w-5 h-5 mr-1" /> Nuevo RA
                 </button>
-            </header>
-
+            </div>
             <div className="space-y-4">
-                {/* FIX: Add explicit types for sort and map callbacks to resolve type inference issues. */}
                 {Object.values(resultadosAprendizaje).sort((a: ResultadoAprendizaje, b: ResultadoAprendizaje) => a.nombre.localeCompare(b.nombre)).map((ra: ResultadoAprendizaje) => {
                     const isExpanded = expandedRAs.has(ra.id);
                     return (

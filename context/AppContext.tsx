@@ -99,6 +99,7 @@ interface AppContextType {
     // Helper functions
     getRA: (raId: string) => ResultadoAprendizaje | undefined;
     getCriterio: (criterioId: string) => CriterioEvaluacion | undefined;
+    getInstrumento: (instrumentoId: string) => InstrumentoEvaluacion | undefined;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -359,6 +360,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         calculatedStudentGrades,
         getRA: (raId: string) => resultadosAprendizaje[raId],
         getCriterio: (criterioId: string) => criteriosEvaluacion[criterioId],
+        getInstrumento: (instrumentoId: string) => instrumentosEvaluacion[instrumentoId],
     };
 
     return (
