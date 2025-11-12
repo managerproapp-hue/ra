@@ -22,7 +22,8 @@ const FiltroAvanzado: React.FC<FiltrosAvanzadosProps> = ({
   datos,
   filtrosIniciales = {},
   onFiltrosCambio,
-  filtrosDisponibles = {},
+  // FIX: Removed default empty object to allow type inference to work correctly with optional chaining.
+  filtrosDisponibles,
   className = ''
 }) => {
   const { resultadosAprendizaje, criteriosEvaluacion, profesores, alumnos } = useAppContext();
@@ -59,15 +60,12 @@ const FiltroAvanzado: React.FC<FiltrosAvanzadosProps> = ({
       </div>
       {mostrarFiltros && (
         <div className="mt-4 pt-4 border-t grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {/* FIX: Add optional chaining to prevent error on empty 'filtrosDisponibles' object */}
             {filtrosDisponibles?.fechas && (
                 <div><label className="text-sm font-medium">Rango de Fechas</label><div className="flex gap-2 mt-1"><input type="date" value={filtros.fechaInicio || ''} onChange={e => manejarCambioFiltro('fechaInicio', e.target.value)} className="w-full p-2 border rounded"/><input type="date" value={filtros.fechaFin || ''} onChange={e => manejarCambioFiltro('fechaFin', e.target.value)} className="w-full p-2 border rounded"/></div></div>
             )}
-            {/* FIX: Add optional chaining to prevent error on empty 'filtrosDisponibles' object */}
             {filtrosDisponibles?.ra && (
                 <div><label className="text-sm font-medium">Resultados de Aprendizaje</label><select multiple value={filtros.raIds || []} onChange={e => manejarCambioFiltro('raIds', Array.from(e.target.selectedOptions, (o: HTMLOptionElement) => o.value))} className="w-full p-2 border rounded mt-1 bg-white h-24">{Object.values(resultadosAprendizaje).map((ra: ResultadoAprendizaje) => <option key={ra.id} value={ra.id}>{ra.nombre}</option>)}</select></div>
             )}
-            {/* FIX: Add optional chaining to prevent error on empty 'filtrosDisponibles' object */}
             {filtrosDisponibles?.evaluador && (
                 <div><label className="text-sm font-medium">Evaluador</label><select value={filtros.evaluadorId || ''} onChange={e => manejarCambioFiltro('evaluadorId', e.target.value)} className="w-full p-2 border rounded mt-1 bg-white"><option value="">Todos</option>{profesores.map(p => <option key={p.id} value={p.id}>{p.nombre} {p.apellido}</option>)}</select></div>
             )}
