@@ -1,6 +1,5 @@
-
 import React, { useState, useEffect, useMemo, lazy, Suspense } from 'react';
-import { Service, ServiceEvaluation, Elaboration, Student, PracticeGroup, ServiceRole, TeacherData, InstituteData, Trimester } from '../types';
+import { Service, ServiceEvaluation, Elaboration, Student, PracticeGroup, ServiceRole, TeacherData, InstituteData } from '../types';
 import { PlusIcon, TrashIcon, SaveIcon, ChefHatIcon, LockClosedIcon, LockOpenIcon, FileTextIcon, ChevronDownIcon, ChevronRightIcon } from '../components/icons';
 import { useAppContext } from '../context/AppContext';
 
@@ -59,7 +58,7 @@ const GestionPracticaView: React.FC<GestionPracticaViewProps> = ({
         }
     }, [selectedServiceId, services, serviceEvaluations, initialServiceId]);
     
-    const handleCreateService = (trimester: Trimester) => {
+    const handleCreateService = (trimester: 't1' | 't2' | 't3') => {
         const newServiceId = contextCreateService(trimester);
         setSelectedServiceId(newServiceId);
         setMainTab('planning');
@@ -313,7 +312,7 @@ const GestionPracticaView: React.FC<GestionPracticaViewProps> = ({
         );
     };
 
-    const TrimesterSection: React.FC<{ trimester: Trimester, title: string }> = ({ trimester, title }) => {
+    const TrimesterSection: React.FC<{ trimester: 't1' | 't2' | 't3', title: string }> = ({ trimester, title }) => {
         const isCollapsed = collapsedTrimesters.has(trimester);
         return (
             <div>

@@ -1,6 +1,4 @@
-
 import React, { useState, Suspense, lazy } from 'react';
-// FIX: Correct import path for AppContext
 import { AppProvider, useAppContext } from './context/AppContext';
 import { ToastContainer } from './components/Toast';
 
@@ -56,7 +54,7 @@ const AppContent: React.FC = () => {
                     clearInitialServiceContext={clearInitialServiceContext}
                 />;
             case 'examenes-practicos':
-                return <ExamenesPracticosView />;
+                return <ExamenesPracticosView isFocusMode={isFocusMode} setIsFocusMode={setIsFocusMode} />;
             case 'calificaciones':
                 return <NotasServicioView onNavigateToService={handleNavigateToService} />;
             case 'gestion-academica':

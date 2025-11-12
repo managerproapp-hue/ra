@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Toast, ToastType } from '../types';
 import { InfoIcon, SaveIcon, XIcon } from './icons'; // Assuming SaveIcon for success, InfoIcon for others
@@ -66,3 +65,7 @@ export const ToastContainer: React.FC<ToastContainerProps> = ({ toasts }) => {
                 {toasts.map((toast) => (
                     <ToastComponent key={toast.id} toast={toast} />
                 ))}
+            </div>
+        </div>
+    );
+};

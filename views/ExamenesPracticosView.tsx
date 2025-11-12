@@ -1,30 +1,21 @@
-
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
-import { Student, PracticalExamEvaluation, ExamPeriod } from '../types';
+import { PracticalExamEvaluation, ExamPeriod } from '../types';
 import { PRACTICAL_EXAM_RUBRIC, SCORE_LEVELS } from '../data/constants';
 import { SearchIcon, SaveIcon } from '../components/icons';
 import { useAppContext } from '../context/AppContext';
 
-const ExamenesPracticosView: React.FC = () => {
-    const { students, practicalExamEvaluations, setPracticalExamEvaluations, addToast } = useAppContext();
+interface ExamenesPracticosViewProps {
+    isFocusMode: boolean;
+    setIsFocusMode: (isFocus: boolean) => void;
+}
+
+const ExamenesPracticosView: React.FC<ExamenesPracticosViewProps> = ({ isFocusMode, setIsFocusMode }) => {
+    const { students, practicalExamEvaluations, handleSavePracticalExam } = useAppContext();
     
     const [activePeriod, setActivePeriod] = useState<ExamPeriod>('t1');
     const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
     const [currentEvaluation, setCurrentEvaluation] = useState<PracticalExamEvaluation | null>(null);
-    const [isFocusMode, setIsFocusMode] = useState(false);
-
-    const onSave = (evaluation: PracticalExamEvaluation) => {
-        setPracticalExamEvaluations(prev => {
-            const index = prev.findIndex(e => e.id === evaluation.id);
-            if (index > -1) {
-                const newEvals = [...prev];
-                newEvals[index] = evaluation;
-                return newEvals;
-            }
-            return [...prev, evaluation];
-        });
-    };
 
     const evaluatedStudents = useMemo(() => {
         return new Set(practicalExamEvaluations.filter(e => e.examPeriod === activePeriod).map(e => e.studentId));
@@ -41,14 +32,11 @@ const ExamenesPracticosView: React.FC = () => {
 
     const calculateFinalScore = useCallback((evaluation: PracticalExamEvaluation | null): number => {
         if (!evaluation) return 0;
-
         let totalWeightedScore = 0;
         let totalWeightOfScoredItems = 0;
-
         PRACTICAL_EXAM_RUBRIC.forEach(ra => {
             let raScoreSum = 0;
             let criteriaInRaCount = 0;
-            
             ra.criteria.forEach(criterion => {
                 const scoreInfo = evaluation.scores?.[ra.id]?.[criterion.id];
                 if (scoreInfo && typeof scoreInfo.score === 'number') {
@@ -56,16 +44,13 @@ const ExamenesPracticosView: React.FC = () => {
                     criteriaInRaCount++;
                 }
             });
-
             if (criteriaInRaCount > 0) {
                 const averageRaScore = raScoreSum / criteriaInRaCount;
                 totalWeightedScore += averageRaScore * ra.weight;
                 totalWeightOfScoredItems += ra.weight;
             }
         });
-
         if (totalWeightOfScoredItems === 0) return 0;
-        
         return totalWeightedScore / totalWeightOfScoredItems;
     }, []);
 
@@ -91,24 +76,11 @@ const ExamenesPracticosView: React.FC = () => {
 
     const handleScoreChange = (raId: string, criterionId: string, score: number | null, notes: string | null) => {
         if (!currentEvaluation) return;
-
-        const newEval = { ...currentEvaluation, scores: { ...currentEvaluation.scores } };
+        const newEval = { ...currentEvaluation };
         if (!newEval.scores[raId]) newEval.scores[raId] = {};
-        newEval.scores[raId] = { ...newEval.scores[raId] };
-        
-        const currentScore = newEval.scores[raId][criterionId] || { score: null, notes: '' };
-        
-        const updatedScore = { ...currentScore };
-
-        if (score !== null) {
-            updatedScore.score = score;
-        }
-        if (notes !== null) {
-            updatedScore.notes = notes;
-        }
-
-        newEval.scores[raId][criterionId] = updatedScore;
-
+        if (!newEval.scores[raId][criterionId]) newEval.scores[raId][criterionId] = { score: null, notes: '' };
+        if (score !== null) newEval.scores[raId][criterionId].score = score;
+        if (notes !== null) newEval.scores[raId][criterionId].notes = notes;
         setCurrentEvaluation(newEval);
     };
 
@@ -116,9 +88,7 @@ const ExamenesPracticosView: React.FC = () => {
         if (currentEvaluation) {
             const finalScore = calculateFinalScore(currentEvaluation);
             const evalToSave = { ...currentEvaluation, finalScore };
-            onSave(evalToSave);
-            const studentName = students.find(s=>s.id === selectedStudentId)?.nombre;
-            addToast(`Examen de ${studentName} guardado con nota ${finalScore.toFixed(2)}.`, 'success');
+            handleSavePracticalExam(evalToSave);
         }
     };
     
@@ -139,7 +109,7 @@ const ExamenesPracticosView: React.FC = () => {
                 <header className="flex justify-between items-center mb-4 pb-4 border-b">
                     <div>
                         <h2 className="text-xl font-bold text-gray-800">Evaluando a: {student?.nombre} {student?.apellido1}</h2>
-                        <p className="text-sm text-gray-500">Rúbrica para el {activePeriod === 't1' ? '1º Trimestre' : activePeriod === 't2' ? '2º Trimestre' : 'Recuperación'}</p>
+                        <p className="text-sm text-gray-500">Rúbrica para el {activePeriod === 't1' ? '1º Trimestre' : activePeriod === 't2' ? '2º Trimestre' : activePeriod === 't3' ? '3º Trimestre' : 'Recuperación'}</p>
                     </div>
                     <div className="text-right">
                         <p className="text-sm font-medium text-gray-500">NOTA FINAL</p>
@@ -195,17 +165,16 @@ const ExamenesPracticosView: React.FC = () => {
 
     return (
         <div className={`flex h-full ${isFocusMode ? 'p-2 sm:p-4' : ''}`}>
-            {/* Student List Column */}
             <aside className={`flex flex-col bg-white shadow-lg ${isFocusMode ? 'w-full md:w-1/3' : 'w-full md:w-1/3 lg:w-1/4'}`}>
                 <header className="p-4 border-b">
                     <h1 className="text-xl font-bold text-gray-800">Exámenes Prácticos</h1>
                     <div className="mt-2">
                         <div className="flex bg-gray-100 rounded-lg p-1">
-                            {(['t1', 't2', 'rec'] as ExamPeriod[]).map(period => (
+                            {(['t1', 't2', 't3', 'rec'] as ExamPeriod[]).map(period => (
                                 <button key={period} onClick={() => setActivePeriod(period)}
                                     className={`flex-1 px-2 py-1 text-sm font-semibold rounded-md transition ${activePeriod === period ? 'bg-white shadow text-blue-600' : 'text-gray-600'}`}
                                 >
-                                    {period === 't1' ? '1º Trimestre' : period === 't2' ? '2º Trimestre' : 'Recuperación'}
+                                    {period === 't1' ? '1º Trim' : period === 't2' ? '2º Trim' : period === 't3' ? '3º Trim' : 'Recup'}
                                 </button>
                             ))}
                         </div>
@@ -238,8 +207,6 @@ const ExamenesPracticosView: React.FC = () => {
                     </button>
                 </footer>
             </aside>
-
-            {/* Rubric Column */}
             <main className="flex-1 bg-gray-50">
                 {renderRubric()}
             </main>

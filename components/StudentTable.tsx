@@ -1,14 +1,12 @@
-
 import React, { useMemo } from 'react';
-// FIX: Correct import path for types
-import { Student, StudentAcademicGrades, StudentCalculatedGrades, EntryExitRecord } from '../types';
+import { Student, AcademicGrades, StudentCalculatedGrades, EntryExitRecord } from '../types';
 import { calculateStudentPeriodAverages } from '../services/gradeCalculator';
 import { ArrowRightLeftIcon } from './icons';
 
 interface StudentTableProps {
   students: Student[];
   onViewStudent: (student: Student) => void;
-  academicGrades: { [studentId: string]: StudentAcademicGrades };
+  academicGrades: AcademicGrades;
   calculatedStudentGrades: Record<string, StudentCalculatedGrades>;
   entryExitRecords: EntryExitRecord[];
 }

@@ -1,6 +1,5 @@
-
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { ServiceRole, TrimesterDates, TeacherData, InstituteData } from '../types';
+import { ServiceRole, TrimesterDates } from '../types';
 import { SettingsIcon, SaveIcon, PlusIcon, TrashIcon, UploadIcon, ExportIcon, XIcon, CalendarDaysIcon } from '../components/icons';
 import { useAppContext } from '../context/AppContext';
 

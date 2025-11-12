@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from 'react';
 import { ArrowLeftOnRectangleIcon, ArrowRightOnRectangleIcon, SearchIcon, SaveIcon, PrinterIcon } from '../components/icons';
 import { useAppContext } from '../context/AppContext';

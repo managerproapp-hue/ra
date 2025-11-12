@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { Service, ServiceEvaluation, Student, PracticeGroup, EntryExitRecord, PreServiceDayEvaluation, ServiceDayIndividualScores } from '../types';
 import { PRE_SERVICE_BEHAVIOR_ITEMS, BEHAVIOR_RATING_MAP, GROUP_EVALUATION_ITEMS, INDIVIDUAL_EVALUATION_ITEMS } from '../data/constants';
@@ -48,7 +47,7 @@ const PreServiceIndividualTable: React.FC<{
                                 const isChecked = evaluationData?.individualEvaluations[s.id]?.[field as keyof typeof evaluationData.individualEvaluations[string]] ?? (field === 'attendance');
                                 return (
                                 <td key={s.id} className="p-2 border text-center">
-                                    <input type="checkbox" checked={!!isChecked} onChange={e => onUpdate(s.id, field, e.target.checked)} className="h-4 w-4" disabled={isLocked} />
+                                    <input type="checkbox" checked={isChecked} onChange={e => onUpdate(s.id, field, e.target.checked)} className="h-4 w-4" disabled={isLocked} />
                                 </td>
                             )})}
                         </tr>
