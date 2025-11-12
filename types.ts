@@ -271,3 +271,40 @@ export interface HighlightedStudent {
     score: number;
     fotoUrl: string;
 }
+
+// --- New types for Auxiliary Components ---
+export interface ResultadoAprendizaje {
+  id: string;
+  nombre: string;
+  descripcion: string;
+  competencias: string[];
+  criteriosEvaluacion: string[];
+  area?: string;
+}
+
+export interface CriterioEvaluacion {
+  id: string;
+  descripcion: string;
+  indicadores: string[];
+  ponderacion: number;
+  instrumentos: string[];
+  raId?: string;
+  raNombre?: string;
+}
+
+export interface InstrumentoEvaluacion {
+  id: string;
+  nombre: string;
+  descripcion: string;
+  escalas: { valor: number; etiqueta: string; descripcion: string }[];
+  campos: string[];
+}
+
+export interface Profesor {
+    id: string;
+    nombre: string;
+    apellido: string;
+    email: string;
+    especialidad: string;
+    telefono: string;
+}

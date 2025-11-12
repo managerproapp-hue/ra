@@ -1,10 +1,16 @@
 import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import { 
     Student, PracticeGroup, Service, ServiceEvaluation, ServiceRole, EntryExitRecord, 
-    AcademicGrades, CourseGrades, PracticalExamEvaluation, TeacherData, InstituteData, Toast, ToastType, StudentCalculatedGrades, TrimesterDates
+    AcademicGrades, CourseGrades, PracticalExamEvaluation, TeacherData, InstituteData, Toast, ToastType, StudentCalculatedGrades, TrimesterDates,
+    ResultadoAprendizaje, CriterioEvaluacion, InstrumentoEvaluacion, Profesor
 } from '../types';
 import { parseFile } from '../services/csvParser';
 import { SERVICE_GRADE_WEIGHTS } from '../data/constants';
+
+import { resultadosAprendizaje as mockRA } from '../data/ra-data';
+import { criteriosEvaluacion as mockCriterios } from '../data/criterios-data';
+import { instrumentosEvaluacion as mockInstrumentos } from '../data/instrumentos-data';
+import { profesores as mockProfesores } from '../data/profesores-data';
 
 // --- Custom Hook for Local Storage ---
 function useLocalStorage<T>(key: string, initialValue: T): [T, React.Dispatch<React.SetStateAction<T>>] {
@@ -65,6 +71,16 @@ interface AppContextType {
     trimesterDates: TrimesterDates;
     setTrimesterDates: React.Dispatch<React.SetStateAction<TrimesterDates>>;
     
+    // New data for auxiliary components
+    resultadosAprendizaje: Record<string, ResultadoAprendizaje>;
+    setResultadosAprendizaje: React.Dispatch<React.SetStateAction<Record<string, ResultadoAprendizaje>>>;
+    criteriosEvaluacion: Record<string, CriterioEvaluacion>;
+    setCriteriosEvaluacion: React.Dispatch<React.SetStateAction<Record<string, CriterioEvaluacion>>>;
+    instrumentosEvaluacion: Record<string, InstrumentoEvaluacion>;
+    setInstrumentosEvaluacion: React.Dispatch<React.SetStateAction<Record<string, InstrumentoEvaluacion>>>;
+    profesores: Profesor[];
+    setProfesores: React.Dispatch<React.SetStateAction<Profesor[]>>;
+
     toasts: Toast[];
     addToast: (message: string, type?: ToastType) => void;
     
@@ -79,6 +95,10 @@ interface AppContextType {
     handleSavePracticalExam: (evaluation: PracticalExamEvaluation) => void;
     
     calculatedStudentGrades: Record<string, StudentCalculatedGrades>;
+
+    // Helper functions
+    getRA: (raId: string) => ResultadoAprendizaje | undefined;
+    getCriterio: (criterioId: string) => CriterioEvaluacion | undefined;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -96,6 +116,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const [teacherData, setTeacherData] = useLocalStorage<TeacherData>('teacher-app-data', { name: '', email: '', logo: null });
     const [instituteData, setInstituteData] = useLocalStorage<InstituteData>('institute-app-data', { name: '', address: '', cif: '', logo: null });
     const [trimesterDates, setTrimesterDates] = useLocalStorage<TrimesterDates>('trimester-dates', defaultTrimesterDates);
+    
+    // New state for auxiliary components
+    const [resultadosAprendizaje, setResultadosAprendizaje] = useLocalStorage<Record<string, ResultadoAprendizaje>>('resultadosAprendizaje', mockRA);
+    const [criteriosEvaluacion, setCriteriosEvaluacion] = useLocalStorage<Record<string, CriterioEvaluacion>>('criteriosEvaluacion', mockCriterios);
+    const [instrumentosEvaluacion, setInstrumentosEvaluacion] = useLocalStorage<Record<string, InstrumentoEvaluacion>>('instrumentosEvaluacion', mockInstrumentos);
+    const [profesores, setProfesores] = useLocalStorage<Profesor[]>('profesores', mockProfesores);
+
     const [toasts, setToasts] = useState<Toast[]>([]);
 
     useEffect(() => {
@@ -321,11 +348,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const contextValue: AppContextType = {
         students, setStudents, practiceGroups, setPracticeGroups, services, setServices, serviceEvaluations, setServiceEvaluations, serviceRoles, setServiceRoles, entryExitRecords, setEntryExitRecords, academicGrades, setAcademicGrades, courseGrades, setCourseGrades, practicalExamEvaluations, setPracticalExamEvaluations, teacherData, setTeacherData, instituteData, setInstituteData,
         trimesterDates, setTrimesterDates,
+        resultadosAprendizaje, setResultadosAprendizaje,
+        criteriosEvaluacion, setCriteriosEvaluacion,
+        instrumentosEvaluacion, setInstrumentosEvaluacion,
+        profesores, setProfesores,
         toasts, addToast,
         handleFileUpload, handleUpdateStudent,
         handleCreateService, handleSaveServiceAndEvaluation, handleDeleteService, onDeleteRole,
         handleSaveEntryExitRecord, handleSavePracticalExam,
-        calculatedStudentGrades
+        calculatedStudentGrades,
+        getRA: (raId: string) => resultadosAprendizaje[raId],
+        getCriterio: (criterioId: string) => criteriosEvaluacion[criterioId],
     };
 
     return (
