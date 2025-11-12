@@ -94,6 +94,7 @@ interface AppContextType {
     handleSaveServiceAndEvaluation: (service: Service, evaluation: ServiceEvaluation) => void;
     handleDeleteService: (serviceId: string) => void;
     onDeleteRole: (roleId: string) => void;
+    handleDeleteInstrumento: (instrumentoId: string) => void;
     handleSaveEntryExitRecord: (record: Omit<EntryExitRecord, 'id' | 'studentId'>, studentIds: string[]) => void;
     handleSavePracticalExam: (evaluation: PracticalExamEvaluation) => void;
     
@@ -317,6 +318,33 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setServiceRoles(prev => prev.filter(r => r.id !== roleId));
         addToast('Rol de servicio eliminado.', 'info');
     };
+    
+    const handleDeleteInstrumento = (instrumentoId: string) => {
+        if (window.confirm('¿Seguro que quieres eliminar este instrumento? También se eliminará de todos los criterios de evaluación asociados.')) {
+            // Delete instrument
+            setInstrumentosEvaluacion(prev => {
+                const newState = { ...prev };
+                delete newState[instrumentoId];
+                return newState;
+            });
+
+            // Remove from criteria
+            setCriteriosEvaluacion(prev => {
+                const newState = { ...prev };
+                Object.keys(newState).forEach(critId => {
+                    const criterio = newState[critId];
+                    const index = criterio.instrumentos.indexOf(instrumentoId);
+                    if (index > -1) {
+                        criterio.instrumentos.splice(index, 1);
+                    }
+                });
+                return newState;
+            });
+
+            addToast('Instrumento eliminado.', 'info');
+        }
+    };
+
 
     const handleSaveEntryExitRecord = (record: Omit<EntryExitRecord, 'id' | 'studentId'>, studentIds: string[]) => {
         const newRecords = studentIds.map(studentId => ({
@@ -351,7 +379,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         unidadesTrabajo, setUnidadesTrabajo,
         toasts, addToast,
         handleFileUpload, handleUpdateStudent,
-        handleCreateService, handleSaveServiceAndEvaluation, handleDeleteService, onDeleteRole,
+        handleCreateService, handleSaveServiceAndEvaluation, handleDeleteService, onDeleteRole, handleDeleteInstrumento,
         handleSaveEntryExitRecord, handleSavePracticalExam,
         calculatedStudentGrades,
         getRA: (raId: string) => resultadosAprendizaje[raId],
