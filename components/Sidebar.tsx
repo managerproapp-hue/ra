@@ -12,7 +12,9 @@ import {
   ChevronRightIcon,
   SettingsIcon,
   FileTextIcon,
-  ClipboardListIcon
+  ClipboardListIcon,
+  // FIX: Added PencilIcon to imports.
+  PencilIcon,
 } from './icons';
 
 interface SidebarProps {
@@ -124,6 +126,20 @@ const Sidebar: React.FC<SidebarProps> = ({ activeView, setActiveView }) => {
             label="RA"
             isActive={activeView === 'ra'}
             onClick={() => setActiveView('ra')}
+            isCollapsed={isCollapsed}
+          />
+          <NavLink
+            icon={BookOpenIcon}
+            label="Unidades de Trabajo"
+            isActive={activeView === 'ut'}
+            onClick={() => setActiveView('ut')}
+            isCollapsed={isCollapsed}
+          />
+          <NavLink
+            icon={PencilIcon}
+            label="Instrumentos"
+            isActive={activeView === 'instrumentos'}
+            onClick={() => setActiveView('instrumentos')}
             isCollapsed={isCollapsed}
           />
 

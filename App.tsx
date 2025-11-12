@@ -15,6 +15,8 @@ const RegistroSalidasEntradasView = lazy(() => import('./views/RegistroSalidasEn
 const GestionAppView = lazy(() => import('./views/GestionAppView'));
 const GestionAcademicaView = lazy(() => import('./views/GestionAcademicaView'));
 const RAView = lazy(() => import('./views/RAView'));
+const UTView = lazy(() => import('./views/UTView'));
+const InstrumentosView = lazy(() => import('./views/InstrumentosView'));
 
 
 const AppContent: React.FC = () => {
@@ -61,6 +63,10 @@ const AppContent: React.FC = () => {
                 return <GestionAcademicaView />;
             case 'ra':
                 return <RAView />;
+            case 'ut':
+                return <UTView />;
+            case 'instrumentos':
+                return <InstrumentosView />;
             case 'salidas-entradas':
                 return <RegistroSalidasEntradasView />;
             case 'gestion-app':

@@ -4,7 +4,7 @@ interface GradeTrendChartProps {
     trimesterAverages: {
         t1: number | null;
         t2: number | null;
-        t3: number | null;
+        t3?: number | null; // Make t3 optional
     };
 }
 
@@ -12,7 +12,8 @@ const GradeTrendChart: React.FC<GradeTrendChartProps> = ({ trimesterAverages }) 
     const data = [
         { name: '1º Trimestre', value: trimesterAverages.t1, color: 'bg-blue-400' },
         { name: '2º Trimestre', value: trimesterAverages.t2, color: 'bg-green-400' },
-        { name: '3º Trimestre', value: trimesterAverages.t3, color: 'bg-purple-400' },
+        // Conditionally include 3rd trimester if it exists
+        ...(trimesterAverages.t3 !== undefined ? [{ name: '3º Trimestre', value: trimesterAverages.t3, color: 'bg-purple-400' }] : []),
     ];
 
     const maxValue = 10;

@@ -38,9 +38,9 @@ const InfoRow: React.FC<{ label: string; value: React.ReactNode; isEditing?: boo
 
 const calculateSimpleAverage = (grades: Partial<CourseModuleGrades>): string => {
     if (!grades) return '-';
-    const validGrades = (Object.values(grades) as (GradeValue | undefined)[])
+    const validGrades = ([grades.t1, grades.t2] as (GradeValue | undefined)[])
         .map(g => parseFloat(String(g)))
-        .filter(g => !isNaN(g));
+        .filter(g => !isNaN(g) && g >= 5);
       
     if (validGrades.length === 0) return '-';
       
@@ -206,7 +206,7 @@ const FichaAlumno: React.FC<FichaAlumnoProps> = ({ student, onBack, entryExitRec
                 <div className="w-full xl:col-span-2 space-y-8">
                     <div className="bg-white shadow-md rounded-lg p-4">
                         <h3 className="text-lg font-bold text-gray-800 mb-2 flex items-center"><TrendingUpIcon className="w-5 h-5 mr-2 text-blue-500"/> Progresión Académica (Módulo Principal)</h3>
-                        <GradeTrendChart trimesterAverages={{ t1: finalAverages.t1, t2: finalAverages.t2, t3: finalAverages.t3 }} />
+                        <GradeTrendChart trimesterAverages={{ t1: finalAverages.t1, t2: finalAverages.t2 }} />
                     </div>
                     <div className="bg-white shadow-md rounded-lg overflow-hidden">
                         <div className="p-4 border-b"><h3 className="text-lg font-bold text-gray-800">Datos Personales</h3></div>
@@ -267,7 +267,7 @@ const FichaAlumno: React.FC<FichaAlumnoProps> = ({ student, onBack, entryExitRec
                                         {ACADEMIC_EVALUATION_STRUCTURE.periods.map(period => {
                                             let grade: GradeValue | undefined = null;
                                             if (instrument.type === 'manual') grade = academicGrades?.[period.key]?.manualGrades?.[instrument.key];
-                                            else if (instrument.key === 'servicios') grade = calculatedGrades?.serviceAverages?.[period.key as 't1'|'t2'|'t3'];
+                                            else if (instrument.key === 'servicios') grade = calculatedGrades?.serviceAverages?.[period.key as 't1'|'t2'];
                                             else {
                                                 const examKey = (period.key + (instrument.key.includes('Rec') ? 'Rec' : '')) as keyof typeof calculatedGrades.practicalExams;
                                                 grade = calculatedGrades?.practicalExams?.[examKey];
@@ -298,7 +298,6 @@ const FichaAlumno: React.FC<FichaAlumnoProps> = ({ student, onBack, entryExitRec
                                     <th className="px-4 py-3 text-left">Módulo</th>
                                     <th className="px-4 py-3">T1</th>
                                     <th className="px-4 py-3">T2</th>
-                                    <th className="px-4 py-3">T3</th>
                                     <th className="px-4 py-3">REC</th>
                                     <th className="px-4 py-3">Media Final</th>
                                 </tr>
@@ -311,7 +310,6 @@ const FichaAlumno: React.FC<FichaAlumnoProps> = ({ student, onBack, entryExitRec
                                             <td className="px-4 py-2 text-left font-medium">{mod}</td>
                                             <td>{grades?.t1 ?? '-'}</td>
                                             <td>{grades?.t2 ?? '-'}</td>
-                                            <td>{grades?.t3 ?? '-'}</td>
                                             <td>{grades?.rec ?? '-'}</td>
                                             <td className="font-bold bg-gray-50">{calculateSimpleAverage(grades)}</td>
                                         </tr>
@@ -363,7 +361,7 @@ const FichaAlumno: React.FC<FichaAlumnoProps> = ({ student, onBack, entryExitRec
                                  <tr>
                                     <td className="px-4 py-2 font-medium">Cocina de Vanguardia: Espumas y Aires</td>
                                     <td className="px-4 py-2 font-bold text-yellow-700">6.8</td>
-                                    <td className="px-4 py-2">3º Trimestre</td>
+                                    <td className="px-4 py-2">2º Trimestre</td>
                                     <td className="px-4 py-2 text-gray-600">La técnica es correcta pero falta creatividad.</td>
                                     <td className="px-4 py-2"><button className="text-blue-600 hover:underline">Ver Detalles</button></td>
                                 </tr>

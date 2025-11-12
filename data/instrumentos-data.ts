@@ -5,6 +5,7 @@ export const instrumentosEvaluacion: Record<string, InstrumentoEvaluacion> = {
     id: 'observacion_sistematica',
     nombre: 'Observación Sistemática',
     descripcion: 'Registro de comportamientos y competencias durante la práctica',
+    ponderacion: 40,
     escalas: [
       { valor: 1, etiqueta: 'No observable', descripcion: 'No se evidencia la competencia' },
       { valor: 2, etiqueta: 'Básico', descripcion: 'Evidencia mínima de la competencia' },
@@ -23,6 +24,7 @@ export const instrumentosEvaluacion: Record<string, InstrumentoEvaluacion> = {
     id: 'lista_verificacion',
     nombre: 'Lista de Verificación',
     descripcion: 'Verificación de cumplimiento de requisitos específicos',
+    ponderacion: 20,
     escalas: [
       { valor: 0, etiqueta: 'No cumple', descripcion: 'No cumple el requisito' },
       { valor: 1, etiqueta: 'Cumple parcialmente', descripcion: 'Cumple el requisito de forma incompleta' },
@@ -40,6 +42,7 @@ export const instrumentosEvaluacion: Record<string, InstrumentoEvaluacion> = {
     id: 'evaluacion_practica',
     nombre: 'Evaluación Práctica',
     descripcion: 'Evaluación de ejecución de tareas prácticas específicas',
+    ponderacion: 50,
     escalas: [
       { valor: 1, etiqueta: 'Insuficiente', descripcion: 'No alcanza el nivel esperado' },
       { valor: 2, etiqueta: 'Suficiente', descripcion: 'Alcanza el nivel mínimo aceptable' },
@@ -59,6 +62,7 @@ export const instrumentosEvaluacion: Record<string, InstrumentoEvaluacion> = {
     id: 'autoevaluacion',
     nombre: 'Autoevaluación',
     descripcion: 'Reflexión y evaluación personal del aprendizaje',
+    ponderacion: 10,
     escalas: [
       { valor: 1, etiqueta: 'Necesito mejorar mucho', descripcion: 'Identifico grandes áreas de mejora' },
       { valor: 2, etiqueta: 'Necesito mejorar', descripcion: 'Identifico algunas áreas de mejora' },

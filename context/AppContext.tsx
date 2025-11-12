@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useMemo } from '
 import { 
     Student, PracticeGroup, Service, ServiceEvaluation, ServiceRole, EntryExitRecord, 
     AcademicGrades, CourseGrades, PracticalExamEvaluation, TeacherData, InstituteData, Toast, ToastType, StudentCalculatedGrades, TrimesterDates,
-    ResultadoAprendizaje, CriterioEvaluacion, InstrumentoEvaluacion, Profesor
+    ResultadoAprendizaje, CriterioEvaluacion, InstrumentoEvaluacion, Profesor, UnidadTrabajo
 } from '../types';
 import { parseFile } from '../services/csvParser';
 import { SERVICE_GRADE_WEIGHTS } from '../data/constants';
@@ -11,6 +11,7 @@ import { resultadosAprendizaje as mockRA } from '../data/ra-data';
 import { criteriosEvaluacion as mockCriterios } from '../data/criterios-data';
 import { instrumentosEvaluacion as mockInstrumentos } from '../data/instrumentos-data';
 import { profesores as mockProfesores } from '../data/profesores-data';
+import { unidadesTrabajo as mockUTs } from '../data/ut-data';
 
 // --- Custom Hook for Local Storage ---
 function useLocalStorage<T>(key: string, initialValue: T): [T, React.Dispatch<React.SetStateAction<T>>] {
@@ -40,7 +41,6 @@ function useLocalStorage<T>(key: string, initialValue: T): [T, React.Dispatch<Re
 const defaultTrimesterDates: TrimesterDates = {
   t1: { start: '2025-09-01', end: '2025-12-22' },
   t2: { start: '2026-01-08', end: '2026-04-11' },
-  t3: { start: '2026-04-22', end: '2026-06-24' },
 };
 
 
@@ -80,6 +80,8 @@ interface AppContextType {
     setInstrumentosEvaluacion: React.Dispatch<React.SetStateAction<Record<string, InstrumentoEvaluacion>>>;
     profesores: Profesor[];
     setProfesores: React.Dispatch<React.SetStateAction<Profesor[]>>;
+    unidadesTrabajo: Record<string, UnidadTrabajo>;
+    setUnidadesTrabajo: React.Dispatch<React.SetStateAction<Record<string, UnidadTrabajo>>>;
 
     toasts: Toast[];
     addToast: (message: string, type?: ToastType) => void;
@@ -123,11 +125,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const [criteriosEvaluacion, setCriteriosEvaluacion] = useLocalStorage<Record<string, CriterioEvaluacion>>('criteriosEvaluacion', mockCriterios);
     const [instrumentosEvaluacion, setInstrumentosEvaluacion] = useLocalStorage<Record<string, InstrumentoEvaluacion>>('instrumentosEvaluacion', mockInstrumentos);
     const [profesores, setProfesores] = useLocalStorage<Profesor[]>('profesores', mockProfesores);
+    const [unidadesTrabajo, setUnidadesTrabajo] = useLocalStorage<Record<string, UnidadTrabajo>>('unidadesTrabajo', mockUTs);
 
     const [toasts, setToasts] = useState<Toast[]>([]);
 
     useEffect(() => {
-        // Migration: Ensure all services have a 'trimester' property for backward compatibility.
         const needsMigration = services.some(s => !s.trimester);
 
         if (needsMigration) {
@@ -143,21 +145,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                 
                 const t1Start = parseDateUTC(dates.t1.start);
                 const t1End = parseDateUTC(dates.t1.end);
-                
                 const t2Start = parseDateUTC(dates.t2.start);
                 const t2End = parseDateUTC(dates.t2.end);
                 
-                const t3Start = parseDateUTC(dates.t3.start);
-                const t3End = parseDateUTC(dates.t3.end);
-
-                // Make end dates inclusive for the whole day
                 t1End.setUTCHours(23, 59, 59, 999);
                 t2End.setUTCHours(23, 59, 59, 999);
-                t3End.setUTCHours(23, 59, 59, 999);
                 
                 if (serviceDate >= t1Start && serviceDate <= t1End) return 't1';
                 if (serviceDate >= t2Start && serviceDate <= t2End) return 't2';
-                if (serviceDate >= t3Start && serviceDate <= t3End) return 't3';
+
+                if (dates.t3) {
+                    const t3Start = parseDateUTC(dates.t3.start);
+                    const t3End = parseDateUTC(dates.t3.end);
+                    t3End.setUTCHours(23, 59, 59, 999);
+                    if (serviceDate >= t3Start && serviceDate <= t3End) return 't3';
+                }
                 
                 console.warn(`Service date ${dateStr} is outside all defined trimester ranges. Defaulting to t1 for migration.`);
                 return 't1'; 
@@ -173,8 +175,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             setServices(migratedServices);
             addToast('Datos de servicios actualizados a la nueva versión.', 'info');
         }
-        // This effect should only run once on mount to check for migration.
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
     
     const calculatedStudentGrades = useMemo((): Record<string, StudentCalculatedGrades> => {
@@ -183,26 +183,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         students.forEach(student => {
             const t1Exam = practicalExamEvaluations.find(e => e.studentId === student.id && e.examPeriod === 't1');
             const t2Exam = practicalExamEvaluations.find(e => e.studentId === student.id && e.examPeriod === 't2');
-            const t3Exam = practicalExamEvaluations.find(e => e.studentId === student.id && e.examPeriod === 't3');
             const recExam = practicalExamEvaluations.find(e => e.studentId === student.id && e.examPeriod === 'rec');
 
             const trimesterScores: {
                 t1: { individual: number[], group: number[] },
                 t2: { individual: number[], group: number[] },
-                t3: { individual: number[], group: number[] }
             } = {
                 t1: { individual: [], group: [] },
                 t2: { individual: [], group: [] },
-                t3: { individual: [], group: [] }
             };
 
             serviceEvaluations.forEach(evaluation => {
                 const service = services.find(s => s.id === evaluation.serviceId);
-                if (!service) return;
+                if (!service || (service.trimester !== 't1' && service.trimester !== 't2')) return;
 
                 const trimester = service.trimester;
-                if (!trimester) return;
-
+                
                 const individualEval = evaluation.serviceDay.individualScores[student.id];
                 if (individualEval && individualEval.attendance) {
                     const hasIndividualScores = individualEval.scores && individualEval.scores.some(s => s !== null);
@@ -223,9 +219,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                 }
             });
             
-            const serviceAverages: { t1: number | null, t2: number | null, t3: number | null } = { t1: null, t2: null, t3: null };
+            const serviceAverages: { t1: number | null, t2: number | null } = { t1: null, t2: null };
 
-            (['t1', 't2', 't3'] as const).forEach(trimester => {
+            (['t1', 't2'] as const).forEach(trimester => {
                 const individualAvg = trimesterScores[trimester].individual.length > 0
                     ? trimesterScores[trimester].individual.reduce((a, b) => a + b, 0) / trimesterScores[trimester].individual.length
                     : null;
@@ -250,7 +246,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                 practicalExams: {
                     t1: t1Exam?.finalScore ?? null,
                     t2: t2Exam?.finalScore ?? null,
-                    t3: t3Exam?.finalScore ?? null,
                     rec: recExam?.finalScore ?? null,
                 }
             };
@@ -353,6 +348,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         criteriosEvaluacion, setCriteriosEvaluacion,
         instrumentosEvaluacion, setInstrumentosEvaluacion,
         profesores, setProfesores,
+        unidadesTrabajo, setUnidadesTrabajo,
         toasts, addToast,
         handleFileUpload, handleUpdateStudent,
         handleCreateService, handleSaveServiceAndEvaluation, handleDeleteService, onDeleteRole,

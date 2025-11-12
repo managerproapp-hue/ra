@@ -170,11 +170,11 @@ const GestionAcademicaView: React.FC = () => {
                      <thead className="bg-gray-100">
                         <tr>
                             <th className="p-2 border font-semibold text-gray-600 text-left">Alumno</th>
-                            {COURSE_MODULES.flatMap(module => [<th key={module} colSpan={5} className="p-2 border font-semibold text-gray-600">{module}</th>])}
+                            {COURSE_MODULES.flatMap(module => [<th key={module} colSpan={4} className="p-2 border font-semibold text-gray-600">{module}</th>])}
                         </tr>
                          <tr>
                             <th className="p-2 border font-semibold text-gray-600 text-left"></th>
-                            {COURSE_MODULES.flatMap(module => [<th key={`${module}-t1`} className="p-2 border font-semibold text-gray-500 text-[10px]">T1</th>,<th key={`${module}-t2`} className="p-2 border font-semibold text-gray-500 text-[10px]">T2</th>,<th key={`${module}-t3`} className="p-2 border font-semibold text-gray-500 text-[10px]">T3</th>,<th key={`${module}-rec`} className="p-2 border font-semibold text-gray-500 text-[10px]">REC</th>,<th key={`${module}-final`} className="p-2 border font-bold text-gray-700 bg-gray-200">FINAL</th>])}
+                            {COURSE_MODULES.flatMap(module => [<th key={`${module}-t1`} className="p-2 border font-semibold text-gray-500 text-[10px]">T1</th>,<th key={`${module}-t2`} className="p-2 border font-semibold text-gray-500 text-[10px]">T2</th>,<th key={`${module}-rec`} className="p-2 border font-semibold text-gray-500 text-[10px]">REC</th>,<th key={`${module}-final`} className="p-2 border font-bold text-gray-700 bg-gray-200">FINAL</th>])}
                         </tr>
                     </thead>
                     <tbody>
@@ -185,12 +185,11 @@ const GestionAcademicaView: React.FC = () => {
                                     <td className="p-1 border text-left font-semibold text-gray-800">{`${student.apellido1} ${student.apellido2}, ${student.nombre}`}</td>
                                     {COURSE_MODULES.flatMap(module => {
                                         const grades: Partial<CourseModuleGrades> = studentGrades[module] || {};
-                                        const validGrades = (Object.values(grades) as (GradeValue | undefined)[]).map(g => parseFloat(String(g))).filter(g => !isNaN(g));
+                                        const validGrades = ([grades.t1, grades.t2] as (GradeValue | undefined)[]).map(g => parseFloat(String(g))).filter(g => !isNaN(g) && g >= 5);
                                         const finalAvg = validGrades.length > 0 ? (validGrades.reduce((a, b) => a + b, 0) / validGrades.length) : null;
                                         return [
                                             <td key={`${module}-t1-cell`} className="border"><input type="number" step="0.1" min="0" max="10" value={grades.t1 ?? ''} onChange={e => handleCourseGradeChange(student.id, module, 't1', e.target.value)} className="w-16 p-1.5 text-center bg-transparent focus:bg-yellow-100 outline-none" /></td>,
                                             <td key={`${module}-t2-cell`} className="border"><input type="number" step="0.1" min="0" max="10" value={grades.t2 ?? ''} onChange={e => handleCourseGradeChange(student.id, module, 't2', e.target.value)} className="w-16 p-1.5 text-center bg-transparent focus:bg-yellow-100 outline-none" /></td>,
-                                            <td key={`${module}-t3-cell`} className="border"><input type="number" step="0.1" min="0" max="10" value={grades.t3 ?? ''} onChange={e => handleCourseGradeChange(student.id, module, 't3', e.target.value)} className="w-16 p-1.5 text-center bg-transparent focus:bg-yellow-100 outline-none" /></td>,
                                             <td key={`${module}-rec-cell`} className="border"><input type="number" step="0.1" min="0" max="10" value={grades.rec ?? ''} onChange={e => handleCourseGradeChange(student.id, module, 'rec', e.target.value)} className="w-16 p-1.5 text-center bg-transparent focus:bg-yellow-100 outline-none" /></td>,
                                             <td key={`${module}-final-cell`} className={`p-1.5 border font-bold ${finalAvg !== null && finalAvg < 5 ? 'text-red-600' : 'text-black'} bg-gray-200`}>{finalAvg?.toFixed(2) ?? '-'}</td>,
                                         ]

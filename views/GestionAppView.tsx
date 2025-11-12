@@ -32,8 +32,8 @@ const RoleModal: React.FC<{
     };
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={onClose}>
+            <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md" onClick={e => e.stopPropagation()}>
                 <div className="flex justify-between items-center mb-4">
                     <h3 className="text-xl font-bold">{role.id.startsWith('new-') ? 'Añadir Nuevo Rol' : 'Editar Rol'}</h3>
                     <button onClick={onClose} className="p-1 rounded-full hover:bg-gray-200"><XIcon className="w-5 h-5" /></button>
@@ -70,15 +70,19 @@ const GestionAppView: React.FC = () => {
     const [currentTrimesterDates, setCurrentTrimesterDates] = useState(trimesterDates);
     const [isRoleModalOpen, setIsRoleModalOpen] = useState(false);
     const [editingRole, setEditingRole] = useState<ServiceRole | null>(null);
-    const [backupKeys, setBackupKeys] = useState<string[]>([]);
+    
+    const backupOptions = [
+        'students', 'practiceGroups', 'services', 'serviceEvaluations', 'serviceRoles', 'entryExitRecords', 
+        'academicGrades', 'courseGrades', 'practicalExamEvaluations', 
+        'resultadosAprendizaje', 'criteriosEvaluacion', 'instrumentosEvaluacion', 'profesores', 'unidadesTrabajo',
+        'teacher-app-data', 'institute-app-data', 'trimester-dates'
+    ];
+    
+    const [backupKeys, setBackupKeys] = useState<string[]>(backupOptions);
     
     useEffect(() => {
         setCurrentTrimesterDates(trimesterDates);
     }, [trimesterDates]);
-
-    const backupOptions = [
-        'students', 'practiceGroups', 'services', 'serviceEvaluations', 'serviceRoles', 'entryExitRecords', 'academicGrades', 'courseGrades', 'practicalExamEvaluations', 'teacher-app-data', 'institute-app-data', 'trimester-dates'
-    ];
 
     const handleLogoChange = (setter: React.Dispatch<React.SetStateAction<any>>, field: string) => (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -120,7 +124,7 @@ const GestionAppView: React.FC = () => {
         }
     }
     
-    const handleTrimesterDateChange = (trimester: 't1' | 't2' | 't3', field: 'start' | 'end', value: string) => {
+    const handleTrimesterDateChange = (trimester: 't1' | 't2', field: 'start' | 'end', value: string) => {
         setCurrentTrimesterDates(prev => ({
             ...prev,
             [trimester]: { ...prev[trimester], [field]: value }
@@ -230,7 +234,7 @@ const GestionAppView: React.FC = () => {
                             <h3 className="text-xl font-bold text-gray-800">Fechas de los Trimestres</h3>
                         </div>
                         <div className="space-y-4">
-                            {(['t1', 't2', 't3'] as const).map((trimestre, index) => (
+                            {(['t1', 't2'] as const).map((trimestre, index) => (
                                 <div key={trimestre}>
                                     <h4 className="font-semibold text-gray-700 mb-2">{index + 1}º Trimestre</h4>
                                     <div className="grid grid-cols-2 gap-4">

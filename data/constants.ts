@@ -128,16 +128,6 @@ export const ACADEMIC_EVALUATION_STRUCTURE = {
         { name: "Ex. Práctico", type: "calculated", key: "exPracticoT2", weight: 0.20 },
       ]
     },
-     {
-      key: "t3",
-      name: "3º Trimestre",
-      instruments: [
-        { name: "Examen 1", type: "manual", key: "examen1", weight: 0.25 },
-        { name: "Examen 2", type: "manual", key: "examen2", weight: 0.25 },
-        { name: "Servicios", type: "calculated", key: "servicios", weight: 0.30 },
-        { name: "Ex. Práctico", type: "calculated", key: "exPracticoT3", weight: 0.20 },
-      ]
-    },
     {
       key: "rec",
       name: "Recuperación",

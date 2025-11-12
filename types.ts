@@ -117,7 +117,7 @@ export interface PrincipalGrades {
   [studentId: string]: {
     t1: PrincipalGrade;
     t2: PrincipalGrade;
-    t3: PrincipalGrade;
+    t3?: PrincipalGrade;
     recFinal: GradeValue;
   };
 }
@@ -125,7 +125,7 @@ export interface PrincipalGrades {
 export interface OtherModuleGrade {
     t1: GradeValue;
     t2: GradeValue;
-    t3: GradeValue;
+    t3?: GradeValue;
     rec: GradeValue;
 }
 
@@ -169,7 +169,7 @@ export interface AcademicGrades {
 export interface CourseModuleGrades {
     t1: GradeValue;
     t2: GradeValue;
-    t3: GradeValue;
+    t3?: GradeValue;
     rec: GradeValue;
 }
 
@@ -206,12 +206,12 @@ export interface StudentCalculatedGrades {
     serviceAverages: {
         t1: number | null;
         t2: number | null;
-        t3: number | null;
+        t3?: number | null;
     };
     practicalExams: {
         t1: number | null;
         t2: number | null;
-        t3: number | null;
+        t3?: number | null;
         rec: number | null;
     };
 }
@@ -240,7 +240,7 @@ export interface TrimesterDateRange {
 export interface TrimesterDates {
     t1: TrimesterDateRange;
     t2: TrimesterDateRange;
-    t3: TrimesterDateRange;
+    t3?: TrimesterDateRange;
 }
 
 export interface TimelineEvent {
@@ -298,6 +298,7 @@ export interface InstrumentoEvaluacion {
   descripcion: string;
   escalas: { valor: number; etiqueta: string; descripcion: string }[];
   campos: string[];
+  ponderacion?: number; // New field
 }
 
 export interface Profesor {
@@ -307,4 +308,15 @@ export interface Profesor {
     email: string;
     especialidad: string;
     telefono: string;
+}
+
+// --- New Type for Unidades de Trabajo ---
+export interface UnidadTrabajo {
+    id: string;
+    nombre: string;
+    descripcion: string;
+    asociaciones: {
+        raId: string;
+        criterioId: string;
+    }[];
 }
