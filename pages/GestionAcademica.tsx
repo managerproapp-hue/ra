@@ -1,9 +1,4 @@
-
-
-
 import React, { useState, useMemo, useEffect } from 'react';
-// FIX: Import CourseModuleGrades to use as a type annotation.
-// FIX: Add GradeValue to imports for explicit typing.
 import { Student, Service, ServiceEvaluation, PracticalExamEvaluation, AcademicGrades, CourseGrades, TeacherData, InstituteData, CourseModuleGrades, GradeValue, ServiceDayIndividualScores } from '../types';
 import { ACADEMIC_EVALUATION_STRUCTURE, COURSE_MODULES } from '../data/constants';
 import { ClipboardCheckIcon, SaveIcon, ExportIcon } from '../components/icons';
@@ -50,10 +45,8 @@ const GestionAcademica: React.FC<GestionAcademicaProps> = ({
             });
 
             if (studentServices.length > 0) {
-                // FIX: Operator '+' cannot be applied to types 'number' and 'unknown'. This is fixed by explicitly typing reduce arguments.
                 const totalServiceScore = studentServices.reduce((acc: number, curr: ServiceEvaluation) => {
                     const individualScores = curr.serviceDay.individualScores[student.id].scores;
-                    // FIX: Explicitly type the arguments of the reduce function to prevent type errors.
                     const totalIndividual = (individualScores || []).reduce((sum: number, s: number | null) => sum + (s || 0), 0);
                     return acc + totalIndividual; // Assuming individual score is out of 10
                 }, 0);
@@ -131,7 +124,7 @@ const GestionAcademica: React.FC<GestionAcademicaProps> = ({
             const newGrades = JSON.parse(JSON.stringify(prev));
             if (!newGrades[studentId]) newGrades[studentId] = {};
             if (!newGrades[studentId][module]) newGrades[studentId][module] = {};
-            newGrades[studentId][module][period] = numericValue;
+            (newGrades[studentId][module] as any)[period] = numericValue;
             return newGrades;
         });
         setIsDirty(true);
@@ -147,8 +140,7 @@ const GestionAcademica: React.FC<GestionAcademicaProps> = ({
     const handleExport = () => {
         const title = "Resumen de Calificaciones";
         
-        // FIX: Correctly construct the multi-row header for jspdf-autotable.
-        const headRow1 = [
+        const headRow1: any[] = [
             { content: 'Alumno', rowSpan: 2 },
             ...ACADEMIC_EVALUATION_STRUCTURE.periods.map(p => ({ content: p.name, colSpan: p.instruments.length + 1 })),
         ];
@@ -229,7 +221,6 @@ const GestionAcademica: React.FC<GestionAcademicaProps> = ({
                         </tr>
                     </thead>
                     <tbody>
-                        {/* FIX: Add explicit type annotation for [groupName, studentsInGroup] to avoid type inference issues with TypeScript. */}
                         {Object.entries(finalGradesAndAverages.studentGroups).map(([groupName, studentsInGroup]: [string, Student[]]) => (
                             <React.Fragment key={groupName}>
                                 <tr><td colSpan={100} className="bg-gray-200 font-bold p-1 text-left pl-4">{groupName}</td></tr>
@@ -318,4 +309,5 @@ const GestionAcademica: React.FC<GestionAcademicaProps> = ({
   );
 };
 
+// FIX: Correct the export name to match the component name.
 export default GestionAcademica;

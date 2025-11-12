@@ -1,6 +1,5 @@
 import React, { useState, useMemo } from 'react';
 import { useAppContext } from '../../../context/AppContext';
-// FIX: Import ResultadoAprendizaje to use as a type annotation.
 import { ResultadoAprendizaje } from '../../../types';
 
 interface SelectorRAProps {
@@ -31,11 +30,9 @@ const SelectorRA: React.FC<SelectorRAProps> = ({
   const raFiltrados = useMemo(() => {
     let ra: ResultadoAprendizaje[] = Object.values(resultadosAprendizaje);
     if (filtrarPorArea) {
-      // FIX: Add explicit type annotation to 'item' to resolve 'unknown' type error.
       ra = ra.filter((item: ResultadoAprendizaje) => item.area === filtrarPorArea);
     }
     if (busqueda) {
-      // FIX: Add explicit type annotation to 'item' to resolve 'unknown' type error.
       ra = ra.filter((item: ResultadoAprendizaje) => 
         item.nombre.toLowerCase().includes(busqueda.toLowerCase()) ||
         item.descripcion.toLowerCase().includes(busqueda.toLowerCase())

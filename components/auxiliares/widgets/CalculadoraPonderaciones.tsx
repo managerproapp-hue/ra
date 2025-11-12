@@ -58,7 +58,7 @@ const CalculadoraPonderaciones: React.FC<CalculadoraPonderacionesProps> = ({
 
   const puntuacionFinal = useMemo(() => {
     if (!puntuacionesActuales) return 0;
-    return criteriosSeleccionados.reduce((total, criterioId) => {
+    return criteriosSeleccionados.reduce((total: number, criterioId: string) => {
       const puntuacion = puntuacionesActuales[criterioId]?.puntuacion;
       const ponderacion = ponderaciones[criterioId] || 0;
       if (typeof puntuacion === 'number') {

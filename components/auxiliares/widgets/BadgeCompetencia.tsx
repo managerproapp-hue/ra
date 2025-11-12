@@ -72,7 +72,6 @@ export const BadgeRA: React.FC<BadgeRAProps> = ({ raId, rendimiento = null, clas
     if (raEvals.length === 0) return null;
     const raScores = raEvals.map(e => {
         const raScoreData = e.scores[raId];
-        // FIX: Add explicit type for 's' to resolve unknown type error.
         const criteriaScores = Object.values(raScoreData).map((s: PracticalExamCriterionScore) => s.score).filter(s => s !== null) as number[];
         if (criteriaScores.length === 0) return null;
         return criteriaScores.reduce((a, b) => a + b, 0) / criteriaScores.length;

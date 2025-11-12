@@ -1,8 +1,3 @@
-
-
-
-
-
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Student, PracticeGroup, Service, ServiceEvaluation, ServiceRole, StudentRoleAssignment, Elaboration } from '../types';
 import { PlusIcon, TrashIcon, SettingsIcon, PencilIcon, SaveIcon, InfoIcon, CalendarDaysIcon, ChefHatIcon, XIcon } from '../components/icons';
@@ -61,12 +56,10 @@ const GestionPractica: React.FC<GestionPracticaProps> = ({
     
     const handleCreateService = () => {
         const newServiceId = `service-${Date.now()}`;
-        // FIX: Added the 'isLocked' property, which is required by the 'Service' type.
         const newService: Service = {
             id: newServiceId,
             name: `Nuevo Servicio ${new Date().toLocaleDateString('es-ES')}`,
             date: new Date().toISOString().split('T')[0],
-            // FIX: Add required 'trimester' property. Defaulting to 't1'.
             trimester: 't1',
             isLocked: false,
             assignedGroups: { comedor: [], takeaway: [] },
@@ -76,7 +69,6 @@ const GestionPractica: React.FC<GestionPracticaProps> = ({
         const newEvaluation: ServiceEvaluation = {
             id: `eval-${newServiceId}`,
             serviceId: newServiceId,
-            // FIX: The 'preService' property is a map of dates to evaluations, so it should be initialized as an empty object.
             preService: {},
             serviceDay: { groupScores: {}, individualScores: {} },
         };
