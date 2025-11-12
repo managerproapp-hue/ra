@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useEffect } from 'react';
 // FIX: Add StudentCalculatedGrades to imports
 import { Student, CourseModuleGrades, GradeValue, StudentCalculatedGrades } from '../types';
@@ -49,6 +50,7 @@ const GestionAcademicaView: React.FC = () => {
             const newGrades = JSON.parse(JSON.stringify(prev));
             if (!newGrades[studentId]) newGrades[studentId] = {};
             if (!newGrades[studentId][periodKey]) newGrades[studentId][periodKey] = { manualGrades: {} };
+            if (!newGrades[studentId][periodKey].manualGrades) newGrades[studentId][periodKey].manualGrades = {};
             newGrades[studentId][periodKey].manualGrades[instrumentKey] = numericValue;
             return newGrades;
         });
@@ -150,7 +152,7 @@ const GestionAcademicaView: React.FC = () => {
                                                     return (
                                                     <td key={`${period.key}-${instrument.key}`} className={`border ${instrument.type === 'calculated' ? 'bg-blue-50' : ''}`}>
                                                     {instrument.type === 'manual' ? (
-                                                        <input type="number" step="0.1" min="0" max="10" value={localAcademicGrades[student.id]?.[period.key]?.manualGrades?.[instrument.key] ?? ''} onChange={e => handleManualGradeChange(student.id, period.key, instrument.key, e.target.value)} className="w-16 p-1.5 text-center bg-transparent focus:bg-yellow-100 outline-none"/>
+                                                        <input type="number" step="0.1" min="0" max="10" value={localAcademicGrades[student.id]?.[period.key as keyof typeof localAcademicGrades[string]]?.manualGrades?.[instrument.key] ?? ''} onChange={e => handleManualGradeChange(student.id, period.key, instrument.key, e.target.value)} className="w-16 p-1.5 text-center bg-transparent focus:bg-yellow-100 outline-none"/>
                                                     ) : (<span className="p-1.5 block">{calculatedGrade !== null ? calculatedGrade.toFixed(2) : '-'}</span>)}
                                                     </td>
                                                 )}),

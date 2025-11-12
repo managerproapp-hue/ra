@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { Student, EntryExitRecord, StudentCalculatedGrades, StudentAcademicGrades, StudentCourseGrades, GradeValue, CourseModuleGrades, ServiceEvaluation, Service, TimelineEvent, PreServiceDayEvaluation } from '../types';
 import { ACADEMIC_EVALUATION_STRUCTURE, COURSE_MODULES } from '../data/constants';
@@ -212,14 +213,14 @@ const FichaAlumno: React.FC<FichaAlumnoProps> = ({ student, onBack, entryExitRec
                                 <tr key={instrument.key}>
                                     <td className="px-4 py-2 text-left font-medium">{instrument.name} ({instrument.weight * 100}%)</td>
                                     {ACADEMIC_EVALUATION_STRUCTURE.periods.map(period => {
-                                        let grade: GradeValue | undefined = null;
-                                        if (instrument.type === 'manual') grade = academicGrades?.[period.key]?.manualGrades?.[instrument.key];
+                                        let grade: GradeValue | undefined | null = null;
+                                        if (instrument.type === 'manual') grade = academicGrades?.[period.key as keyof typeof academicGrades]?.manualGrades?.[instrument.key];
                                         else if (instrument.key === 'servicios') grade = calculatedGrades?.serviceAverages?.[period.key as 't1'|'t2'|'t3'];
                                         else {
                                             const examKey = period.key as keyof typeof calculatedGrades.practicalExams;
                                             grade = calculatedGrades?.practicalExams?.[examKey];
                                         }
-                                        return <td key={`${period.key}-${instrument.key}`} className="px-4 py-2">{grade?.toFixed(2) ?? '-'}</td>
+                                        return <td key={`${period.key}-${instrument.key}`} className="px-4 py-2">{typeof grade === 'number' ? grade.toFixed(2) : '-'}</td>
                                     })}
                                 </tr>
                             ))}
@@ -298,6 +299,7 @@ const FichaAlumno: React.FC<FichaAlumnoProps> = ({ student, onBack, entryExitRec
                             </div>
                             <div>
                                 <p className="text-xs text-gray-500">{event.date.toLocaleDateString('es-ES')}{event.serviceName && ` - ${event.serviceName}`}</p>
+
                                 <p className="font-bold text-sm">{event.title}</p>
                                 <p className="text-sm text-gray-600">{event.content}</p>
                             </div>
