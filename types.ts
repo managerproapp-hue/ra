@@ -162,9 +162,11 @@ export interface StudentAcademicGrades {
     [periodKey: string]: StudentAcademicPeriodGrades;
 }
 
+// FIX: Export AcademicGrades interface to be used across the application.
 export interface AcademicGrades {
     [studentId: string]: StudentAcademicGrades;
 }
+
 
 export interface CourseModuleGrades {
     t1: GradeValue;
@@ -292,14 +294,20 @@ export interface CriterioEvaluacion {
   raNombre?: string;
 }
 
+export interface EvaluationActivity {
+    id: string;
+    name: string;
+    trimester: 't1' | 't2';
+}
+
 export interface InstrumentoEvaluacion {
   id: string;
   nombre: string;
   descripcion: string;
-  escalas: { valor: number; etiqueta: string; descripcion: string }[];
-  campos: string[];
-  ponderacion?: number; // New field
+  pesoTotal?: number;
+  activities: EvaluationActivity[];
 }
+
 
 export interface Profesor {
     id: string;
@@ -310,13 +318,15 @@ export interface Profesor {
     telefono: string;
 }
 
-// --- New Type for Unidades de Trabajo ---
+export interface AsignacionActividad {
+    raId: string;
+    criterioId: string;
+    activityIds: string[];
+}
+
 export interface UnidadTrabajo {
     id: string;
     nombre: string;
     descripcion: string;
-    asociaciones: {
-        raId: string;
-        criterioId: string;
-    }[];
+    asociaciones: AsignacionActividad[];
 }

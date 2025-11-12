@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAppContext } from '../../../context/AppContext';
+// FIX: Import ResultadoAprendizaje to be used for explicit typing.
 import { ResultadoAprendizaje } from '../../../types';
 
 interface FiltrosAvanzadosProps {

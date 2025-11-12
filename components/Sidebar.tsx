@@ -13,7 +13,6 @@ import {
   SettingsIcon,
   FileTextIcon,
   ClipboardListIcon,
-  // FIX: Added PencilIcon to imports.
   PencilIcon,
 } from './icons';
 

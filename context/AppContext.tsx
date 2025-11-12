@@ -13,6 +13,7 @@ import { instrumentosEvaluacion as mockInstrumentos } from '../data/instrumentos
 import { profesores as mockProfesores } from '../data/profesores-data';
 import { unidadesTrabajo as mockUTs } from '../data/ut-data';
 
+
 // --- Custom Hook for Local Storage ---
 function useLocalStorage<T>(key: string, initialValue: T): [T, React.Dispatch<React.SetStateAction<T>>] {
   const [storedValue, setStoredValue] = useState<T>(() => {
@@ -120,7 +121,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const [instituteData, setInstituteData] = useLocalStorage<InstituteData>('institute-app-data', { name: '', address: '', cif: '', logo: null });
     const [trimesterDates, setTrimesterDates] = useLocalStorage<TrimesterDates>('trimester-dates', defaultTrimesterDates);
     
-    // New state for auxiliary components
     const [resultadosAprendizaje, setResultadosAprendizaje] = useLocalStorage<Record<string, ResultadoAprendizaje>>('resultadosAprendizaje', mockRA);
     const [criteriosEvaluacion, setCriteriosEvaluacion] = useLocalStorage<Record<string, CriterioEvaluacion>>('criteriosEvaluacion', mockCriterios);
     const [instrumentosEvaluacion, setInstrumentosEvaluacion] = useLocalStorage<Record<string, InstrumentoEvaluacion>>('instrumentosEvaluacion', mockInstrumentos);
