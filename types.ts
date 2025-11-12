@@ -1,5 +1,142 @@
+
+
+// ==================== ALUMNO ====================
+export interface Alumno {
+  id: string;
+  nombre: string;
+  apellidos: string;
+  dni: string;
+  email?: string;
+  telefono?: string;
+  fechaNacimiento?: string;
+  curso: string;
+  grupo: string;
+  activo: boolean;
+  fechaCreacion: string;
+  fechaActualizacion: string;
+  resultadosAprendizaje: ResultadoAprendizajeAlumno[];
+  observaciones?: string;
+}
+export interface ResultadoAprendizajeAlumno {
+  raId: string;
+  raNumero: number;
+  raNombre: string;
+  trimestre1: number;
+  trimestre2: number;
+  trimestre3: number;
+  promedioGeneral: number;
+  estado: EstadoResultado;
+  ultimaEvaluacion: string;
+}
+export enum EstadoResultado {
+  PENDIENTE = 'pendiente',
+  APROBADO = 'aprobado',
+  SUSPENDIDO = 'suspendido',
+  EN_CURSO = 'en_curso'
+}
+// ==================== RESULTADOS DE APRENDIZAJE ====================
+export interface ResultadoAprendizaje {
+  id: string;
+  numero: number;
+  nombre: string;
+  descripcion: string;
+  codigo: string;
+  trimestre: number;
+  ponderacion: number;
+  activo: boolean;
+  criterios: Criterio[];
+  fechaCreacion: string;
+  fechaActualizacion: string;
+}
+// ==================== CRITERIOS ====================
+export interface Criterio {
+  id: string;
+  raId: string;
+  raNumero: number;
+  codigo: string;
+  descripcion: string;
+  descripcionDetallada: string;
+  instrumentoId: string;
+  ponderacion: number;
+  trimestre: number;
+  activo: boolean;
+  notas: NotaAlumno[];
+  fechaCreacion: string;
+  fechaActualizacion: string;
+}
+export interface NotaAlumno {
+  id: string;
+  alumnoId: string;
+  criterioId: string;
+  valor: number;
+  fechaEvaluacion: string;
+  observaciones?: string;
+  instrumentoId: string;
+  trimestre: number;
+}
+// ==================== INSTRUMENTOS ====================
+export interface Instrumento {
+  id: string;
+  codigo: string;
+  nombre: string;
+  descripcion: string;
+  tipo: TipoInstrumento;
+  ponderacion: number;
+  activo: boolean;
+  criterios: Criterio[];
+  fechaCreacion: string;
+  fechaActualizacion: string;
+}
+export enum TipoInstrumento {
+  EXAMEN = 'examen',
+  PRACTICA = 'practica',
+  PROYECTO = 'proyecto',
+  OBSERVACION = 'observacion',
+  EXPOSICION = 'exposicion',
+  PORTAFOLIO = 'portafolio',
+  TRABAJO_GRUPAL = 'trabajo_grupal',
+  PARTICIPACION = 'participacion'
+}
+// ==================== EVALUACIÓN (New Definition) ====================
+export interface Evaluacion {
+  id: string; // Composite key like `${studentId}-${raId}-${criterionId}`
+  alumnoId: string;
+  criterioId: string;
+  resultadoAprendizaje: string;
+  instrumento: string; // Not in the new design, but needed for compatibility
+  trimestre: number;
+  nota: number | null;
+  fechaEvaluacion: Date;
+  ultimaModificacion: Date;
+  modificado?: boolean; // UI state flag
+}
+export interface ConfiguracionEvaluacion {
+  autoSave: boolean;
+  intervaloAutoSave: number; // en segundos
+  validacionesActivas: boolean;
+  redondeoAutomatico: boolean;
+  decimalesPermitidos: number;
+  notaMinima: number;
+  notaMaxima: number;
+  notificarCambios: boolean;
+}
+// ==================== PONDERACIONES ====================
+export interface Ponderacion {
+  id: string;
+  raNumero: number;
+  trimestre: number;
+  porcentaje: number;
+  cursoAcademico: string;
+  activa: boolean;
+  fechaCreacion: string;
+  fechaActualizacion: string;
+}
+
+// Keep original types and export them for compatibility
 export type GradeValue = number | null;
 
+// FIX: Type 'Student' recursively references itself as a base type.
+// The original file had a circular dependency and was missing the Student interface definition.
 export interface Student {
   id: string;
   nre: string;
@@ -270,4 +407,12 @@ export interface HighlightedStudent {
     name: string;
     score: number;
     fotoUrl: string;
+}
+
+export interface EstadoEvaluacion {
+  total: number;
+  completadas: number;
+  pendientes: number;
+  porcentajeCompletado: number;
+  promedioGeneral: number;
 }
