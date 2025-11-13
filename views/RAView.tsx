@@ -188,14 +188,21 @@ const AsociacionesModal: React.FC<AsociacionesModalProps> = ({ isOpen, onClose, 
 };
 
 const RAView: React.FC = () => {
-    // FIX: Add 'setResultadosAprendizaje' from useAppContext to allow saving RA data.
-    const { resultadosAprendizaje, setResultadosAprendizaje, criteriosEvaluacion, setCriteriosEvaluacion, addToast, unidadesTrabajo, instrumentosEvaluacion } = useAppContext();
+    const { 
+        resultadosAprendizaje, 
+        criteriosEvaluacion, 
+        setCriteriosEvaluacion, 
+        addToast, 
+        unidadesTrabajo, 
+        instrumentosEvaluacion,
+        handleSaveRA,
+        handleDeleteRA,
+        handleSaveCriterio,
+        handleDeleteCriterio
+    } = useAppContext();
     const [expandedRAs, setExpandedRAs] = useState<Set<string>>(new Set());
     
-    // State for CRUD Modals
     const [formModalState, setFormModalState] = useState<{ isOpen: boolean; type: 'ra' | 'criterio' | null; data: any; parentRaId?: string | null }>({ isOpen: false, type: null, data: null });
-    
-    // State for Association Modal
     const [asocModalState, setAsocModalState] = useState<{isOpen: boolean; criterio: CriterioEvaluacion | null}>({isOpen: false, criterio: null});
 
     const handleOpenFormModal = (type: 'ra' | 'criterio', data: any, parentRaId: string | null = null) => {
@@ -208,28 +215,29 @@ const RAView: React.FC = () => {
         const { type, parentRaId } = formModalState;
         
         if (type === 'ra') {
-            const newRA = data as ResultadoAprendizaje;
-            // FIX: Use 'setResultadosAprendizaje' to save the new/updated RA.
-            setResultadosAprendizaje(prev => ({...prev, [newRA.id]: newRA}));
-            addToast(`RA "${newRA.nombre}" guardado.`, 'success');
+            handleSaveRA(data as ResultadoAprendizaje);
         } else if (type === 'criterio' && parentRaId) {
-            const newCrit = data as CriterioEvaluacion;
-            setCriteriosEvaluacion(prev => ({...prev, [newCrit.id]: newCrit}));
-            // FIX: Use 'setResultadosAprendizaje' to update the parent RA's criteria list.
-            setResultadosAprendizaje(prev => {
-                const parent = prev[parentRaId];
-                if(parent && !parent.criteriosEvaluacion.includes(newCrit.id)) {
-                    return {...prev, [parentRaId]: {...parent, criteriosEvaluacion: [...parent.criteriosEvaluacion, newCrit.id]}};
-                }
-                return prev;
-            });
-            addToast(`Criterio guardado.`, 'success');
+            handleSaveCriterio(data as CriterioEvaluacion, parentRaId);
         }
         handleCloseFormModal();
     };
 
     const handleDelete = (type: 'ra' | 'criterio', id: string, parentRaId?: string | null) => {
-        // ... (existing delete logic using context setters)
+         if (type === 'ra') {
+            const ra = resultadosAprendizaje[id];
+            if (!ra) return;
+            if (window.confirm(`¿Estás seguro de que quieres eliminar el RA "${ra.nombre}"?`)) {
+                 if (window.confirm(`¡ATENCIÓN! Esta acción es irreversible y también eliminará todos sus criterios de evaluación. ¿Confirmas la eliminación?`)) {
+                    handleDeleteRA(id);
+                }
+            }
+        } else if (type === 'criterio' && parentRaId) {
+            const criterio = criteriosEvaluacion[id];
+            if (!criterio) return;
+             if (window.confirm(`¿Estás seguro de que quieres eliminar el criterio "${criterio.descripcion.substring(0, 30)}..."?`)) {
+                handleDeleteCriterio(id, parentRaId);
+            }
+        }
     };
 
     const toggleExpand = (raId: string) => {
@@ -259,8 +267,7 @@ const RAView: React.FC = () => {
             </header>
             
             <div className="space-y-4">
-                {/* FIX: Add type annotation for 'a', 'b', and 'ra' to resolve 'unknown' type errors. */}
-                {Object.values(resultadosAprendizaje).sort((a: ResultadoAprendizaje, b: ResultadoAprendizaje) => a.nombre.localeCompare(b.nombre)).map((ra: ResultadoAprendizaje) => {
+                {(Object.values(resultadosAprendizaje) as ResultadoAprendizaje[]).sort((a, b) => a.nombre.localeCompare(b.nombre)).map((ra) => {
                     const isExpanded = expandedRAs.has(ra.id);
                     return (
                         <div key={ra.id} className="bg-white rounded-lg shadow-sm">
@@ -268,29 +275,30 @@ const RAView: React.FC = () => {
                                 <button className="p-1" onClick={() => toggleExpand(ra.id)}>{isExpanded ? <ChevronDownIcon/> : <ChevronRightIcon/>}</button>
                                 <div className="flex-1 ml-2"><h3 className="font-bold">{ra.nombre}</h3><p className="text-sm text-gray-500">{ra.descripcion}</p></div>
                                 <div className="flex items-center space-x-2">
-                                    <button onClick={() => handleOpenFormModal('ra', ra)} className="p-2"><PencilIcon className="w-4 h-4 text-gray-500"/></button>
-                                    <button onClick={() => handleDelete('ra', ra.id)} className="p-2"><TrashIcon className="w-4 h-4 text-gray-500"/></button>
+                                    <button onClick={() => handleOpenFormModal('ra', ra)} className="p-2 text-gray-500 hover:text-blue-600 hover:bg-gray-100 rounded-full"><PencilIcon className="w-4 h-4"/></button>
+                                    <button onClick={() => handleDelete('ra', ra.id)} className="p-2 text-gray-500 hover:text-red-600 hover:bg-gray-100 rounded-full"><TrashIcon className="w-4 h-4"/></button>
                                 </div>
                             </div>
                             {isExpanded && (
                                 <div className="border-t p-4 bg-gray-50">
                                     <div className="flex justify-between items-center mb-2"><h4 className="font-semibold text-sm">Criterios de Evaluación</h4> <button onClick={() => handleOpenFormModal('criterio', { id: `crit_${Date.now()}`, descripcion: '', ponderacion: 0, indicadores: [], asociaciones: [] }, ra.id)} className="text-sm flex items-center text-blue-600"><PlusIcon className="w-4 h-4"/>Añadir Criterio</button></div>
                                     <div className="space-y-2">
-                                        {ra.criteriosEvaluacion.map(critId => {
+                                        {(ra.criteriosEvaluacion || []).map(critId => {
                                             const criterio = criteriosEvaluacion[critId];
                                             if (!criterio) return null;
+                                            const asociaciones = criterio.asociaciones || [];
                                             return (
                                                 <div key={criterio.id} className="bg-white p-3 rounded-md border">
                                                     <div className="flex justify-between items-start">
                                                         <p className="text-sm font-medium flex-1 pr-4">{criterio.descripcion}</p>
                                                         <div className="flex items-center space-x-1 flex-shrink-0">
-                                                            <button onClick={() => setAsocModalState({isOpen: true, criterio})} className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded hover:bg-blue-200">Asociaciones ({criterio.asociaciones.length})</button>
-                                                            <button onClick={() => handleOpenFormModal('criterio', criterio, ra.id)} className="p-1.5"><PencilIcon className="w-4 h-4 text-gray-500"/></button>
-                                                            <button onClick={() => handleDelete('criterio', criterio.id, ra.id)} className="p-1.5"><TrashIcon className="w-4 h-4 text-gray-500"/></button>
+                                                            <button onClick={() => setAsocModalState({isOpen: true, criterio})} className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded hover:bg-blue-200">Asociaciones ({asociaciones.length})</button>
+                                                            <button onClick={() => handleOpenFormModal('criterio', criterio, ra.id)} className="p-1.5 text-gray-500 hover:text-blue-600 hover:bg-gray-50 rounded-full"><PencilIcon className="w-4 h-4"/></button>
+                                                            <button onClick={() => handleDelete('criterio', criterio.id, ra.id)} className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-gray-50 rounded-full"><TrashIcon className="w-4 h-4"/></button>
                                                         </div>
                                                     </div>
                                                     <div className="mt-2 pt-2 border-t text-xs">
-                                                        {criterio.asociaciones.map(asoc => (
+                                                        {asociaciones.map(asoc => (
                                                             <div key={asoc.id} className="flex gap-2 items-center">
                                                                 <span className="font-bold">{unidadesTrabajo[asoc.utId]?.nombre}:</span>
                                                                 <div className="flex flex-wrap gap-1">
@@ -298,7 +306,7 @@ const RAView: React.FC = () => {
                                                                 </div>
                                                             </div>
                                                         ))}
-                                                        {criterio.asociaciones.length === 0 && <span className="text-gray-400">Sin asociaciones.</span>}
+                                                        {asociaciones.length === 0 && <span className="text-gray-400">Sin asociaciones.</span>}
                                                     </div>
                                                 </div>
                                             );

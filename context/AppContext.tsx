@@ -97,8 +97,15 @@ interface AppContextType {
     handleDeleteInstrumento: (instrumentoId: string) => void;
     handleSaveEntryExitRecord: (record: Omit<EntryExitRecord, 'id' | 'studentId'>, studentIds: string[]) => void;
     handleSavePracticalExam: (evaluation: PracticalExamEvaluation) => void;
+    
+    // CRUD for academic structure
+    handleSaveRA: (ra: ResultadoAprendizaje) => void;
+    handleDeleteRA: (raId: string) => void;
+    handleSaveCriterio: (criterio: CriterioEvaluacion, parentRaId: string) => void;
+    handleDeleteCriterio: (criterioId: string, parentRaId: string) => void;
     handleSaveUT: (ut: UnidadTrabajo) => void;
     handleDeleteUT: (utId: string) => void;
+    handleResetApp: () => void;
     
     calculatedStudentGrades: Record<string, StudentCalculatedGrades>;
 
@@ -337,29 +344,26 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     
     const handleDeleteInstrumento = (instrumentoId: string) => {
         if (window.confirm('¿Seguro que quieres eliminar este instrumento? También se eliminará de todos los criterios de evaluación asociados.')) {
-            // Delete instrument
             setInstrumentosEvaluacion(prev => {
                 const newState = { ...prev };
                 delete newState[instrumentoId];
                 return newState;
             });
-
-            // Remove from criteria associations
             setCriteriosEvaluacion(prev => {
                 const newState = { ...prev };
                 Object.keys(newState).forEach(critId => {
                     const criterio = newState[critId];
-                    criterio.asociaciones.forEach(asoc => {
-                        asoc.instrumentoIds = asoc.instrumentoIds.filter(id => id !== instrumentoId);
-                    });
+                    if (criterio.asociaciones) {
+                        criterio.asociaciones.forEach(asoc => {
+                            asoc.instrumentoIds = asoc.instrumentoIds.filter(id => id !== instrumentoId);
+                        });
+                    }
                 });
                 return newState;
             });
-
             addToast('Instrumento eliminado.', 'info');
         }
     };
-
 
     const handleSaveEntryExitRecord = (record: Omit<EntryExitRecord, 'id' | 'studentId'>, studentIds: string[]) => {
         const newRecords = studentIds.map(studentId => ({
@@ -384,6 +388,81 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         addToast('Examen práctico guardado.', 'success');
     };
 
+    // --- ACADEMIC STRUCTURE CRUD ---
+
+    const handleSaveRA = (ra: ResultadoAprendizaje) => {
+        setResultadosAprendizaje(prev => ({ ...prev, [ra.id]: ra }));
+        addToast(`RA "${ra.nombre}" guardado.`, 'success');
+    };
+
+    const handleDeleteRA = (raId: string) => {
+        const raToDelete = resultadosAprendizaje[raId];
+        if (!raToDelete) return;
+        
+        const criteriaIdsToDelete = raToDelete.criteriosEvaluacion;
+        setCriteriosEvaluacion(prev => {
+            const newState = { ...prev };
+            criteriaIdsToDelete.forEach(critId => {
+                delete newState[critId];
+            });
+            return newState;
+        });
+
+        setResultadosAprendizaje(prev => {
+            const newState = { ...prev };
+            delete newState[raId];
+            return newState;
+        });
+        addToast(`RA "${raToDelete.nombre}" y sus criterios han sido eliminados.`, 'info');
+    };
+
+    const handleSaveCriterio = (criterio: CriterioEvaluacion, parentRaId: string) => {
+        const criterioToSave = { ...criterio, raId: parentRaId };
+        
+        setCriteriosEvaluacion(prev => ({ ...prev, [criterioToSave.id]: criterioToSave }));
+
+        setResultadosAprendizaje(prev => {
+            const parentRA = prev[parentRaId];
+            if (parentRA && !parentRA.criteriosEvaluacion.includes(criterioToSave.id)) {
+                return {
+                    ...prev,
+                    [parentRaId]: {
+                        ...parentRA,
+                        criteriosEvaluacion: [...parentRA.criteriosEvaluacion, criterioToSave.id]
+                    }
+                };
+            }
+            return prev;
+        });
+        addToast('Criterio guardado.', 'success');
+    };
+    
+    const handleDeleteCriterio = (criterioId: string, parentRaId: string) => {
+        const critToDelete = criteriosEvaluacion[criterioId];
+        if (!critToDelete) return;
+        
+        setCriteriosEvaluacion(prev => {
+            const newState = { ...prev };
+            delete newState[criterioId];
+            return newState;
+        });
+        
+        setResultadosAprendizaje(prev => {
+            const parentRA = prev[parentRaId];
+            if (parentRA) {
+                return {
+                    ...prev,
+                    [parentRaId]: {
+                        ...parentRA,
+                        criteriosEvaluacion: parentRA.criteriosEvaluacion.filter(id => id !== criterioId)
+                    }
+                };
+            }
+            return prev;
+        });
+        addToast(`Criterio eliminado.`, 'info');
+    };
+
     const handleSaveUT = (ut: UnidadTrabajo) => {
         setUnidadesTrabajo(prev => ({ ...prev, [ut.id]: ut }));
         addToast('Unidad de Trabajo guardada.', 'success');
@@ -398,14 +477,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             });
             setCriteriosEvaluacion(prev => {
                 const newState = { ...prev };
-                // FIX: Add type annotation for 'criterio' to resolve 'unknown' type error.
                 Object.values(newState).forEach((criterio: CriterioEvaluacion) => {
-                    criterio.asociaciones = criterio.asociaciones.filter(asoc => asoc.utId !== utId);
+                    criterio.asociaciones = (criterio.asociaciones || []).filter(asoc => asoc.utId !== utId);
                 });
                 return newState;
             });
             addToast('Unidad de Trabajo eliminada.', 'info');
         }
+    };
+    
+    const handleResetApp = () => {
+        const keys = [
+            'students', 'practiceGroups', 'services', 'serviceEvaluations', 'serviceRoles', 'entryExitRecords', 
+            'academicGrades', 'courseGrades', 'practicalExamEvaluations', 
+            'resultadosAprendizaje', 'criteriosEvaluacion', 'instrumentosEvaluacion', 'profesores', 'unidadesTrabajo',
+            'teacher-app-data', 'institute-app-data', 'trimester-dates'
+        ];
+        keys.forEach(key => localStorage.removeItem(key));
+        addToast('Aplicación reseteada. Recargando...', 'success');
+        setTimeout(() => window.location.reload(), 1500);
     };
 
     const contextValue: AppContextType = {
@@ -419,7 +509,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         toasts, addToast,
         handleFileUpload, handleUpdateStudent,
         handleCreateService, handleSaveServiceAndEvaluation, handleDeleteService, onDeleteRole, handleDeleteInstrumento,
-        handleSaveEntryExitRecord, handleSavePracticalExam, handleSaveUT, handleDeleteUT,
+        handleSaveEntryExitRecord, handleSavePracticalExam, 
+        handleSaveRA, handleDeleteRA, handleSaveCriterio, handleDeleteCriterio,
+        handleSaveUT, handleDeleteUT,
+        handleResetApp,
         calculatedStudentGrades,
         getRA: (raId: string) => resultadosAprendizaje[raId],
         getCriterio: (criterioId: string) => criteriosEvaluacion[criterioId],

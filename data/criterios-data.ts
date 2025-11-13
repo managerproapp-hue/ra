@@ -4,6 +4,7 @@ export const criteriosEvaluacion: Record<string, CriterioEvaluacion> = {
   // Criterios para Cocina Básica
   cocina_001: {
     id: 'cocina_001',
+    raId: 'cocina_basica',
     descripcion: 'Prepara correctamente las técnicas básicas de cocción (hervir, freír, hornear)',
     indicadores: [
       'Mantiene temperaturas adecuadas de cocción',
@@ -18,6 +19,7 @@ export const criteriosEvaluacion: Record<string, CriterioEvaluacion> = {
   },
   cocina_002: {
     id: 'cocina_002',
+    raId: 'cocina_basica',
     descripcion: 'Maneja con destreza los utensilios y equipos básicos de cocina',
     indicadores: [
       'Identifica y usa correctamente cada utensilio',
@@ -29,6 +31,7 @@ export const criteriosEvaluacion: Record<string, CriterioEvaluacion> = {
   },
   cocina_003: {
     id: 'cocina_003',
+    raId: 'cocina_basica',
     descripcion: 'Aplica principios de higiene alimentaria en todas las operaciones',
     indicadores: [
       'Mantiene higiene personal adecuada',
@@ -40,6 +43,7 @@ export const criteriosEvaluacion: Record<string, CriterioEvaluacion> = {
   },
   cocina_004: {
     id: 'cocina_004',
+    raId: 'cocina_basica',
     descripcion: 'Colabora efectivamente en trabajo de equipo en cocina',
     indicadores: [
       'Se comunica efectivamente con compañeros',
@@ -51,6 +55,7 @@ export const criteriosEvaluacion: Record<string, CriterioEvaluacion> = {
   },
   cocina_005: {
     id: 'cocina_005',
+    raId: 'cocina_basica',
     descripcion: 'Demuestra organización y planificación en sus tareas culinarias',
     indicadores: [
       'Planifica mise en place eficientemente',
@@ -63,6 +68,7 @@ export const criteriosEvaluacion: Record<string, CriterioEvaluacion> = {
   // Criterios para Cocina Mediterránea
   med_001: {
     id: 'med_001',
+    raId: 'cocina_mediterranea',
     descripcion: 'Identifica y selecciona ingredientes típicos mediterráneos',
     indicadores: [
       'Conoce propiedades nutricionales de ingredientes',
@@ -74,6 +80,7 @@ export const criteriosEvaluacion: Record<string, CriterioEvaluacion> = {
   },
   med_002: {
     id: 'med_002',
+    raId: 'cocina_mediterranea',
     descripcion: 'Elabora platos tradicionales mediterráneos con técnica correcta',
     indicadores: [
       'Reproduce recetas tradicionales autenticas',
@@ -86,6 +93,7 @@ export const criteriosEvaluacion: Record<string, CriterioEvaluacion> = {
   // Criterios para Panadería
   pan_001: {
     id: 'pan_001',
+    raId: 'panaderia_pasteleria',
     descripcion: 'Domina el proceso de elaboración de masas panarias',
     indicadores: [
       'Controla proporciones y mezclado de ingredientes',

@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { ServiceRole, TrimesterDates } from '../types';
-import { SettingsIcon, SaveIcon, PlusIcon, TrashIcon, UploadIcon, ExportIcon, XIcon, CalendarDaysIcon } from '../components/icons';
+import { SettingsIcon, SaveIcon, PlusIcon, TrashIcon, UploadIcon, ExportIcon, XIcon, CalendarDaysIcon, AlertTriangleIcon } from '../components/icons';
 import { useAppContext } from '../context/AppContext';
 
 const DataCard: React.FC<{ title: string; children: React.ReactNode; }> = ({ title, children }) => (
@@ -119,7 +119,7 @@ const GestionAppView: React.FC = () => {
     const { 
         teacherData, setTeacherData, instituteData, setInstituteData, 
         serviceRoles, setServiceRoles, onDeleteRole, addToast,
-        trimesterDates, setTrimesterDates
+        trimesterDates, setTrimesterDates, handleResetApp
     } = useAppContext();
     
     const [currentTeacherData, setCurrentTeacherData] = useState(teacherData);
@@ -130,6 +130,9 @@ const GestionAppView: React.FC = () => {
     const [isRestoreModalOpen, setIsRestoreModalOpen] = useState(false);
     const [backupData, setBackupData] = useState<Record<string, any> | null>(null);
     const [restoreKeys, setRestoreKeys] = useState<Set<string>>(new Set());
+    const [isResetModalOpen, setIsResetModalOpen] = useState(false);
+    const [resetConfirmText, setResetConfirmText] = useState('');
+
     
     const backupOptions = [
         'students', 'practiceGroups', 'services', 'serviceEvaluations', 'serviceRoles', 'entryExitRecords', 
@@ -298,6 +301,22 @@ const GestionAppView: React.FC = () => {
         }
     };
 
+    const openResetModal = () => {
+        setResetConfirmText('');
+        setIsResetModalOpen(true);
+    };
+
+    const closeResetModal = () => {
+        setIsResetModalOpen(false);
+    };
+
+    const confirmReset = () => {
+        if (resetConfirmText === 'BORRAR DATOS') {
+            handleResetApp();
+            closeResetModal();
+        }
+    };
+
     return (
         <div>
             <header className="mb-8">
@@ -433,6 +452,28 @@ const GestionAppView: React.FC = () => {
                     </DataCard>
                 </div>
             </div>
+
+            <div className="mt-8">
+                <DataCard title="Zona de Peligro">
+                    <div className="border-2 border-dashed border-red-400 bg-red-50 p-4 rounded-lg">
+                        <div className="flex items-start">
+                            <AlertTriangleIcon className="w-6 h-6 text-red-500 mr-3 flex-shrink-0"/>
+                            <div>
+                                <h3 className="text-xl font-bold text-red-800">Resetear Aplicación</h3>
+                                <p className="text-red-700 mt-1">Esta acción borrará permanentemente TODOS los datos de la aplicación, incluyendo alumnos, grupos, servicios, evaluaciones y configuraciones. Esta acción es irreversible.</p>
+                                <button
+                                    onClick={openResetModal}
+                                    className="mt-4 flex items-center bg-red-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-red-700 transition"
+                                >
+                                    <TrashIcon className="w-5 h-5 mr-2"/>
+                                    Borrar todos los datos...
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </DataCard>
+            </div>
+
             <RoleModal isOpen={isRoleModalOpen} onClose={() => setIsRoleModalOpen(false)} role={editingRole} onSave={handleSaveRole} />
              <RestoreModal
                 isOpen={isRestoreModalOpen}
@@ -443,6 +484,44 @@ const GestionAppView: React.FC = () => {
                 onKeyToggle={handleToggleRestoreKey}
                 onSelectAll={handleSelectAllRestoreKeys}
             />
+
+            {isResetModalOpen && (
+                <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4" onClick={closeResetModal}>
+                    <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-lg" onClick={e => e.stopPropagation()}>
+                        <div className="flex items-center mb-4">
+                            <AlertTriangleIcon className="w-8 h-8 text-red-500 mr-3"/>
+                            <h3 className="text-xl font-bold text-red-800">¿Estás absolutamente seguro?</h3>
+                        </div>
+                        <p className="text-gray-700 mb-4">Esta acción no se puede deshacer. Todos los datos serán eliminados permanentemente. Para confirmar, por favor escribe <strong className="text-red-600">BORRAR DATOS</strong> en el campo de abajo.</p>
+                        
+                        <div className="mb-4">
+                            <label htmlFor="confirmReset" className="block text-sm font-medium text-gray-700 mb-1">Confirmación</label>
+                            <input
+                                id="confirmReset"
+                                type="text"
+                                value={resetConfirmText}
+                                onChange={e => setResetConfirmText(e.target.value)}
+                                className="w-full p-2 border border-gray-300 rounded-md focus:ring-red-500 focus:border-red-500"
+                                placeholder="BORRAR DATOS"
+                            />
+                        </div>
+
+                        <div className="flex justify-end space-x-2 pt-4 border-t mt-4">
+                            <button onClick={closeResetModal} className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 font-semibold">
+                                Cancelar
+                            </button>
+                            <button
+                                onClick={confirmReset}
+                                disabled={resetConfirmText !== 'BORRAR DATOS'}
+                                className="px-4 py-2 bg-red-600 text-white rounded-md font-semibold flex items-center disabled:bg-red-300 disabled:cursor-not-allowed"
+                            >
+                                <TrashIcon className="w-5 h-5 mr-2" />
+                                Entiendo las consecuencias, borrar todo
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

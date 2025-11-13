@@ -70,40 +70,39 @@ const UTView: React.FC = () => {
     };
 
     const AsociacionesSummary: React.FC<{ ut: UnidadTrabajo }> = ({ ut }) => {
-        const CriteriosAsociados = useMemo(() => {
-            const allCriterios = Object.values(criteriosEvaluacion);
-            // FIX: Add type annotation for 'c' to resolve 'unknown' type error.
-            const criteriaForThisUT = allCriterios.filter((c: CriterioEvaluacion) => 
-                c.asociaciones.some(a => a.utId === ut.id)
+        const CriteriosAsociadosPorRA = useMemo(() => {
+            const grouped: Record<string, { ra: ResultadoAprendizaje; criterios: CriterioEvaluacion[] }> = {};
+            const allCriterios = Object.values(criteriosEvaluacion) as CriterioEvaluacion[];
+
+            const criteriaForThisUT = allCriterios.filter((c) => 
+                (c.asociaciones || []).some(a => a.utId === ut.id)
             );
             
-            // FIX: Add type annotation for 'crit' to resolve 'unknown' type error.
-            const groupedByRA = criteriaForThisUT.reduce<Record<string, { ra: ResultadoAprendizaje; criterios: CriterioEvaluacion[] }>>((acc, crit: CriterioEvaluacion) => {
+            criteriaForThisUT.forEach(crit => {
                 const raId = crit.raId;
-                if (!raId) return acc;
-                if (!acc[raId]) {
+                if (!raId) return;
+
+                if (!grouped[raId]) {
                     const ra = resultadosAprendizaje[raId];
                     if (ra) {
-                        acc[raId] = { ra, criterios: [] };
+                        grouped[raId] = { ra, criterios: [] };
                     }
                 }
-                if (acc[raId]) {
-                    // FIX: Type annotation on 'crit' resolves the error here.
-                    acc[raId].criterios.push(crit);
+                if (grouped[raId]) {
+                    grouped[raId].criterios.push(crit);
                 }
-                return acc;
-            }, {});
+            });
 
-            return Object.values(groupedByRA);
-        }, [ut.id]);
+            return Object.values(grouped);
+        }, [ut.id, resultadosAprendizaje, criteriosEvaluacion]);
 
-        if (CriteriosAsociados.length === 0) {
+        if (CriteriosAsociadosPorRA.length === 0) {
             return <p className="text-xs text-gray-500">Esta UT no está asociada a ningún criterio de evaluación.</p>;
         }
 
         return (
             <div className="space-y-2">
-                {CriteriosAsociados.map(({ ra, criterios }) => (
+                {CriteriosAsociadosPorRA.map(({ ra, criterios }) => (
                     <div key={ra.id} className="text-xs bg-gray-100 p-2 rounded">
                         <p className="font-semibold">{ra.nombre}</p>
                         <ul className="list-disc list-inside pl-2 mt-1 space-y-1">
