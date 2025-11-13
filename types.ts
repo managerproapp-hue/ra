@@ -285,22 +285,15 @@ export interface ResultadoAprendizaje {
   ponderacion?: number;
 }
 
-export interface AsociacionCriterio {
-  id: string; // Unique ID for the association
-  utId: string;
-  instrumentoIds: string[];
-}
-
 export interface CriterioEvaluacion {
   id: string;
   descripcion: string;
   indicadores: string[];
   ponderacion: number;
+  instrumentos: string[];
   raId?: string;
   raNombre?: string;
-  asociaciones: AsociacionCriterio[];
 }
-
 
 export interface EvaluationActivity {
     id: string;
@@ -326,8 +319,15 @@ export interface Profesor {
     telefono: string;
 }
 
+export interface AsignacionActividad {
+    raId: string;
+    criterioId: string;
+    activityIds: string[];
+}
+
 export interface UnidadTrabajo {
     id: string;
     nombre: string;
     descripcion: string;
+    asociaciones: AsignacionActividad[];
 }
