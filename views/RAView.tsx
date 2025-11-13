@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { useAppContext } from '../context/AppContext';
-// FIX: Import UnidadTrabajo and InstrumentoEvaluacion
 import { ResultadoAprendizaje, CriterioEvaluacion, AsociacionCriterio, UnidadTrabajo, InstrumentoEvaluacion } from '../types';
 import { PlusIcon, PencilIcon, TrashIcon, ChevronDownIcon, ChevronRightIcon, SaveIcon, XIcon, FileTextIcon, SettingsIcon } from '../components/icons';
 
@@ -67,13 +66,11 @@ const AsociacionesModal: React.FC<AsociacionesModalProps> = ({ isOpen, onClose, 
                                 <label className="block text-sm font-medium text-gray-700">Unidad de Trabajo</label>
                                 <select value={nuevaAsociacion.utId} onChange={e => setNuevaAsociacion(p => ({ ...p, utId: e.target.value }))} className="mt-1 w-full p-2 border rounded-md bg-white">
                                     <option value="">Seleccionar...</option>
-                                    {/* FIX: Cast Object.values to an array of UnidadTrabajo to fix type errors. */}
                                     {(Object.values(unidadesTrabajo) as UnidadTrabajo[]).map(ut => <option key={ut.id} value={ut.id}>{ut.nombre}</option>)}
                                 </select>
                             </div>
                             <div className="md:col-span-2">
                                 <label className="block text-sm font-medium text-gray-700">Instrumentos de Evaluación</label>
-                                {/* FIX: Cast Object.values to an array of InstrumentoEvaluacion to fix type errors. */}
                                 <div className="mt-2 grid grid-cols-2 gap-2 text-sm">{(Object.values(instrumentosEvaluacion) as InstrumentoEvaluacion[]).map(inst => (<label key={inst.id} className="flex items-center p-1 cursor-pointer"><input type="checkbox" checked={nuevaAsociacion.instrumentoIds.includes(inst.id)} onChange={() => setNuevaAsociacion(p => ({...p, instrumentoIds: p.instrumentoIds.includes(inst.id) ? p.instrumentoIds.filter(id => id !== inst.id) : [...p.instrumentoIds, inst.id]}))} className="h-4 w-4 rounded border-gray-300"/><span className="ml-2">{inst.nombre}</span></label>))}</div>
                             </div>
                          </div>
@@ -172,6 +169,14 @@ const RAView: React.FC = () => {
         });
     };
     
+    const handleDeleteRA = (ra: ResultadoAprendizaje) => {
+        if (window.confirm(`¿Estás seguro de que quieres eliminar el Resultado de Aprendizaje "${ra.nombre}"?`)) {
+            if (window.confirm(`¡ACCIÓN IRREVERSIBLE!\n\nEsto eliminará permanentemente el RA y sus ${ra.criteriosEvaluacion.length} criterios asociados.\n\n¿Estás SEGURO de que quieres continuar?`)) {
+                deleteRA(ra.id);
+            }
+        }
+    };
+    
     return (
         <div>
             <header className="flex flex-wrap justify-between items-center gap-4 mb-8">
@@ -195,7 +200,7 @@ const RAView: React.FC = () => {
                                 </div>
                                 <div className="flex items-center space-x-2">
                                     <button onClick={() => setRaModal({ isOpen: true, data: ra })} className="p-2 text-gray-500 hover:text-blue-600"><PencilIcon className="w-4 h-4"/></button>
-                                    <button onClick={() => deleteRA(ra.id)} className="p-2 text-gray-500 hover:text-red-600"><TrashIcon className="w-4 h-4"/></button>
+                                    <button onClick={() => handleDeleteRA(ra)} className="p-2 text-gray-500 hover:text-red-600"><TrashIcon className="w-4 h-4"/></button>
                                 </div>
                             </div>
                             {isExpanded && (

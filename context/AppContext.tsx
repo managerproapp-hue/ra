@@ -416,18 +416,27 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     const deleteRA = (raId: string) => {
         const ra = resultadosAprendizaje[raId];
-        if (ra && ra.criteriosEvaluacion.length > 0) {
-            addToast('No se puede eliminar un RA que tiene criterios de evaluación asociados.', 'error');
-            return;
-        }
-        if (window.confirm(`¿Estás seguro de que quieres eliminar "${ra?.nombre || 'este RA'}"?`)) {
-            setResultadosAprendizaje(prev => {
-                const newRAs = { ...prev };
-                delete newRAs[raId];
-                return newRAs;
+        if (!ra) return;
+
+        const criteriosAEliminar = ra.criteriosEvaluacion;
+
+        setResultadosAprendizaje(prev => {
+            const newRAs = { ...prev };
+            delete newRAs[raId];
+            return newRAs;
+        });
+
+        if (criteriosAEliminar.length > 0) {
+            setCriteriosEvaluacion(prev => {
+                const newCriterios = { ...prev };
+                criteriosAEliminar.forEach(criterioId => {
+                    delete newCriterios[criterioId];
+                });
+                return newCriterios;
             });
-            addToast('Resultado de aprendizaje eliminado.', 'info');
         }
+        
+        addToast(`"${ra.nombre}" y sus ${criteriosAEliminar.length} criterios han sido eliminados.`, 'info');
     };
 
     const saveCriterio = (data: Partial<Omit<CriterioEvaluacion, 'id' | 'asociaciones' | 'raId'>>, raId: string, id?: string) => {
