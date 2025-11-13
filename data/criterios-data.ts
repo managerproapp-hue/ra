@@ -11,7 +11,10 @@ export const criteriosEvaluacion: Record<string, CriterioEvaluacion> = {
       'Logra texturas y puntos de cocción apropiados'
     ],
     ponderacion: 20,
-    instrumentos: ['observacion_sistematica', 'lista_verificacion']
+    asociaciones: [
+        { id: 'asoc-c1-ut1', utId: 'ut1', instrumentoIds: ['practica_diaria', 'servicios'] },
+        { id: 'asoc-c1-ut2', utId: 'ut2', instrumentoIds: ['ex_practico'] }
+    ]
   },
   cocina_002: {
     id: 'cocina_002',
@@ -22,7 +25,7 @@ export const criteriosEvaluacion: Record<string, CriterioEvaluacion> = {
       'Demuestra eficiencia en el manejo de herramientas'
     ],
     ponderacion: 15,
-    instrumentos: ['evaluacion_practica', 'portafolio']
+    asociaciones: []
   },
   cocina_003: {
     id: 'cocina_003',
@@ -33,7 +36,7 @@ export const criteriosEvaluacion: Record<string, CriterioEvaluacion> = {
       'Conserva alimentos según normativas'
     ],
     ponderacion: 25,
-    instrumentos: ['lista_verificacion', 'evaluacion_continua']
+    asociaciones: []
   },
   cocina_004: {
     id: 'cocina_004',
@@ -44,7 +47,7 @@ export const criteriosEvaluacion: Record<string, CriterioEvaluacion> = {
       'Respeta jerarquías y protocolos de cocina'
     ],
     ponderacion: 15,
-    instrumentos: ['coevaluacion', 'observacion_sistematica']
+    asociaciones: []
   },
   cocina_005: {
     id: 'cocina_005',
@@ -55,7 +58,7 @@ export const criteriosEvaluacion: Record<string, CriterioEvaluacion> = {
       'Mantiene orden y limpieza en su área'
     ],
     ponderacion: 25,
-    instrumentos: ['autoevaluacion', 'portafolio']
+    asociaciones: []
   },
   // Criterios para Cocina Mediterránea
   med_001: {
@@ -67,7 +70,7 @@ export const criteriosEvaluacion: Record<string, CriterioEvaluacion> = {
       'Identifica productos locales y regionales'
     ],
     ponderacion: 20,
-    instrumentos: ['evaluacion_teorica', 'observacion_sistematica']
+    asociaciones: []
   },
   med_002: {
     id: 'med_002',
@@ -78,7 +81,7 @@ export const criteriosEvaluacion: Record<string, CriterioEvaluacion> = {
       'Conserva sabores y tradiciones culinarias'
     ],
     ponderacion: 25,
-    instrumentos: ['evaluacion_practica', 'proyecto_realizacion']
+    asociaciones: []
   },
   // Criterios para Panadería
   pan_001: {
@@ -90,6 +93,6 @@ export const criteriosEvaluacion: Record<string, CriterioEvaluacion> = {
       'Logra texturas y volúmenes apropiados'
     ],
     ponderacion: 30,
-    instrumentos: ['evaluacion_practica', 'observacion_sistematica']
+    asociaciones: []
   }
 };

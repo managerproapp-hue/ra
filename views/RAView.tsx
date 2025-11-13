@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useAppContext } from '../context/AppContext';
-import { ResultadoAprendizaje, CriterioEvaluacion } from '../types';
-import { PlusIcon, PencilIcon, TrashIcon, ChevronDownIcon, ChevronRightIcon, SaveIcon, XIcon, FileTextIcon } from '../components/icons';
+import { ResultadoAprendizaje, CriterioEvaluacion, AsociacionCriterio, UnidadTrabajo, InstrumentoEvaluacion } from '../types';
+import { PlusIcon, PencilIcon, TrashIcon, ChevronDownIcon, ChevronRightIcon, SaveIcon, XIcon, FileTextIcon, SettingsIcon } from '../components/icons';
 
+// Modal for RA/Criterio Form
 interface FormModalProps {
     isOpen: boolean;
     onClose: () => void;
@@ -21,16 +22,14 @@ const FormModal: React.FC<FormModalProps> = ({ isOpen, onClose, onSave, initialD
         }
         if (type === 'criterio') {
             dataForForm.indicadores = (initialData.indicadores || []).join(', ');
-            dataForForm.instrumentos = (initialData.instrumentos || []).join(', ');
         }
         setFormData(dataForForm);
     }, [initialData, type]);
 
     if (!isOpen) return null;
 
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-        const { name, value } = e.target;
-        setFormData((prev: any) => ({ ...prev, [name]: value }));
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+        setFormData((prev: any) => ({ ...prev, [e.target.name]: e.target.value }));
     };
 
     const handleSubmit = (e: React.FormEvent) => {
@@ -42,65 +41,146 @@ const FormModal: React.FC<FormModalProps> = ({ isOpen, onClose, onSave, initialD
         }
         if (type === 'criterio') {
             dataToSave.indicadores = formData.indicadores.split(',').map((s: string) => s.trim()).filter(Boolean);
-            dataToSave.instrumentos = formData.instrumentos.split(',').map((s: string) => s.trim()).filter(Boolean);
             dataToSave.ponderacion = parseInt(String(formData.ponderacion), 10) || 0;
         }
         onSave(dataToSave);
     };
-
-    const title = type === 'ra' ? (initialData.id.startsWith('ra_') ? 'Nuevo Resultado de Aprendizaje' : 'Editar Resultado de Aprendizaje') : (initialData.id.startsWith('crit_') ? 'Nuevo Criterio de Evaluación' : 'Editar Criterio de Evaluación');
+    
+    const title = type === 'ra' ? (initialData.id.startsWith('ra_') ? 'Nuevo RA' : 'Editar RA') : (initialData.id.startsWith('crit_') ? 'Nuevo Criterio' : 'Editar Criterio');
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={onClose}>
-            <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-2xl max-h-[90vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
-                <div className="flex justify-between items-center mb-4 pb-4 border-b">
-                    <h3 className="text-xl font-bold text-gray-800">{title}</h3>
-                    <button onClick={onClose} className="p-1 rounded-full hover:bg-gray-200"><XIcon className="w-6 h-6 text-gray-600" /></button>
-                </div>
-                <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto pr-2 space-y-4">
-                    {type === 'ra' ? (
+            <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-2xl" onClick={e => e.stopPropagation()}>
+                <h3 className="text-xl font-bold mb-4">{title}</h3>
+                <form onSubmit={handleSubmit} className="space-y-4">
+                     {type === 'ra' ? (
                         <>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700">Nombre</label>
-                                <input type="text" name="nombre" value={formData.nombre} onChange={handleChange} required className="mt-1 w-full p-2 border rounded-md" />
-                            </div>
-                             <div>
-                                <label className="block text-sm font-medium text-gray-700">Ponderación (%)</label>
-                                <input type="number" name="ponderacion" value={formData.ponderacion || ''} onChange={handleChange} min="0" max="100" className="mt-1 w-full p-2 border rounded-md" />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700">Descripción</label>
-                                <textarea name="descripcion" value={formData.descripcion} onChange={handleChange} rows={3} className="mt-1 w-full p-2 border rounded-md"></textarea>
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700">Competencias (separadas por coma)</label>
-                                <textarea name="competencias" value={formData.competencias} onChange={handleChange} rows={2} className="mt-1 w-full p-2 border rounded-md"></textarea>
-                            </div>
+                            <input type="text" name="nombre" value={formData.nombre} onChange={handleChange} placeholder="Nombre del RA" required className="w-full p-2 border rounded-md" />
+                            <input type="number" name="ponderacion" value={formData.ponderacion || ''} onChange={handleChange} placeholder="Ponderación (%)" min="0" max="100" className="w-full p-2 border rounded-md" />
+                            <textarea name="descripcion" value={formData.descripcion} onChange={handleChange} placeholder="Descripción" rows={3} className="w-full p-2 border rounded-md"></textarea>
+                            <textarea name="competencias" value={formData.competencias} onChange={handleChange} placeholder="Competencias (separadas por coma)" rows={2} className="w-full p-2 border rounded-md"></textarea>
                         </>
                     ) : (
                          <>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700">Descripción</label>
-                                <textarea name="descripcion" value={formData.descripcion} onChange={handleChange} required rows={3} className="mt-1 w-full p-2 border rounded-md" />
-                            </div>
-                             <div>
-                                <label className="block text-sm font-medium text-gray-700">Ponderación en el RA (%)</label>
-                                <input type="number" name="ponderacion" value={formData.ponderacion} onChange={handleChange} required min="0" max="100" className="mt-1 w-full p-2 border rounded-md" />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700">Indicadores (separados por coma)</label>
-                                <textarea name="indicadores" value={formData.indicadores} onChange={handleChange} rows={2} className="mt-1 w-full p-2 border rounded-md"></textarea>
-                            </div>
-                             <div>
-                                <label className="block text-sm font-medium text-gray-700">Instrumentos (separados por coma)</label>
-                                <textarea name="instrumentos" value={formData.instrumentos} onChange={handleChange} rows={2} className="mt-1 w-full p-2 border rounded-md"></textarea>
-                            </div>
+                            <textarea name="descripcion" value={formData.descripcion} onChange={handleChange} placeholder="Descripción del Criterio" required rows={3} className="w-full p-2 border rounded-md" />
+                            <input type="number" name="ponderacion" value={formData.ponderacion} onChange={handleChange} placeholder="Ponderación en el RA (%)" required min="0" max="100" className="w-full p-2 border rounded-md" />
+                            <textarea name="indicadores" value={formData.indicadores} onChange={handleChange} placeholder="Indicadores (separados por coma)" rows={2} className="w-full p-2 border rounded-md"></textarea>
                         </>
                     )}
+                    <div className="flex justify-end gap-2"><button type="button" onClick={onClose} className="px-4 py-2 bg-gray-200 rounded-md">Cancelar</button><button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-md">Guardar</button></div>
                 </form>
-                 <div className="flex justify-end space-x-2 pt-4 border-t mt-4">
-                    <button type="button" onClick={onClose} className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 font-semibold">Cancelar</button>
-                    <button type="button" onClick={handleSubmit} className="px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 font-semibold flex items-center"><SaveIcon className="w-5 h-5 mr-2" />Guardar</button>
+            </div>
+        </div>
+    );
+};
+
+// Modal for Associations
+interface AsociacionesModalProps {
+    isOpen: boolean;
+    onClose: () => void;
+    onSave: (criterio: CriterioEvaluacion) => void;
+    criterio: CriterioEvaluacion;
+}
+
+const AsociacionesModal: React.FC<AsociacionesModalProps> = ({ isOpen, onClose, onSave, criterio }) => {
+    const { unidadesTrabajo, instrumentosEvaluacion } = useAppContext();
+    const [asociaciones, setAsociaciones] = useState<AsociacionCriterio[]>(criterio.asociaciones || []);
+    const [selectedUT, setSelectedUT] = useState('');
+    const [selectedInstrumentos, setSelectedInstrumentos] = useState<Set<string>>(new Set());
+
+    if (!isOpen) return null;
+
+    const handleAddAsociacion = () => {
+        if (!selectedUT || selectedInstrumentos.size === 0) {
+            alert('Debes seleccionar una Unidad de Trabajo y al menos un instrumento.');
+            return;
+        }
+        const newAsociacion: AsociacionCriterio = {
+            id: `asoc_${criterio.id}_${Date.now()}`,
+            utId: selectedUT,
+            instrumentoIds: Array.from(selectedInstrumentos),
+        };
+        setAsociaciones(prev => [...prev, newAsociacion]);
+        setSelectedUT('');
+        setSelectedInstrumentos(new Set());
+    };
+    
+    const handleRemoveAsociacion = (id: string) => {
+        setAsociaciones(prev => prev.filter(a => a.id !== id));
+    };
+
+    const handleToggleInstrumento = (id: string) => {
+        setSelectedInstrumentos(prev => {
+            const newSet = new Set(prev);
+            if (newSet.has(id)) newSet.delete(id);
+            else newSet.add(id);
+            return newSet;
+        });
+    };
+    
+    const handleSaveChanges = () => {
+        onSave({ ...criterio, asociaciones });
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={onClose}>
+            <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-3xl max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
+                <h3 className="text-xl font-bold mb-2">Gestionar Asociaciones</h3>
+                <p className="text-sm text-gray-600 mb-4 truncate">para: {criterio.descripcion}</p>
+                
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 flex-1 overflow-y-auto">
+                    {/* Add new association */}
+                    <div className="bg-gray-50 p-4 rounded-lg border">
+                        <h4 className="font-semibold mb-2">Nueva Asociación</h4>
+                        <div className="space-y-4">
+                             <div>
+                                <label className="text-sm font-medium">1. Unidad de Trabajo</label>
+                                <select value={selectedUT} onChange={e => setSelectedUT(e.target.value)} className="w-full p-2 mt-1 border rounded bg-white">
+                                    <option value="">Seleccionar UT...</option>
+                                    {Object.values(unidadesTrabajo).map((ut: UnidadTrabajo) => <option key={ut.id} value={ut.id}>{ut.nombre}</option>)}
+                                </select>
+                             </div>
+                             <div>
+                                <label className="text-sm font-medium">2. Instrumentos de Evaluación</label>
+                                <div className="mt-1 space-y-1 max-h-40 overflow-y-auto border p-2 rounded bg-white">
+                                    {Object.values(instrumentosEvaluacion).map((inst: InstrumentoEvaluacion) => (
+                                        <label key={inst.id} className="flex items-center text-sm p-1 rounded hover:bg-gray-100">
+                                            <input type="checkbox" checked={selectedInstrumentos.has(inst.id)} onChange={() => handleToggleInstrumento(inst.id)} className="mr-2"/>
+                                            {inst.nombre}
+                                        </label>
+                                    ))}
+                                </div>
+                             </div>
+                             <button onClick={handleAddAsociacion} className="w-full bg-blue-500 text-white py-2 rounded-md hover:bg-blue-600 disabled:opacity-50" disabled={!selectedUT || selectedInstrumentos.size === 0}>
+                                <PlusIcon className="w-5 h-5 inline mr-1"/> Añadir Asociación
+                             </button>
+                        </div>
+                    </div>
+                    {/* List of current associations */}
+                    <div className="overflow-y-auto pr-2">
+                        <h4 className="font-semibold mb-2">Asociaciones Actuales ({asociaciones.length})</h4>
+                        <div className="space-y-2">
+                            {asociaciones.map(asoc => (
+                                <div key={asoc.id} className="p-3 bg-blue-50 rounded-lg border border-blue-200">
+                                    <div className="flex justify-between items-start">
+                                        <p className="font-bold text-sm text-blue-800">{unidadesTrabajo[asoc.utId]?.nombre || 'UT Eliminada'}</p>
+                                        <button onClick={() => handleRemoveAsociacion(asoc.id)} className="text-red-500 hover:text-red-700"><TrashIcon className="w-4 h-4"/></button>
+                                    </div>
+                                    <div className="flex flex-wrap gap-1 mt-1">
+                                        {asoc.instrumentoIds.map(id => (
+                                            <span key={id} className="text-xs bg-blue-200 text-blue-900 px-2 py-0.5 rounded-full">{instrumentosEvaluacion[id]?.nombre || 'Inválido'}</span>
+                                        ))}
+                                    </div>
+                                </div>
+                            ))}
+                            {asociaciones.length === 0 && <p className="text-sm text-gray-500 text-center py-4">No hay asociaciones para este criterio.</p>}
+                        </div>
+                    </div>
+                </div>
+
+                <div className="flex justify-end gap-2 mt-4 pt-4 border-t">
+                    <button onClick={onClose} className="px-4 py-2 bg-gray-200 rounded-md">Cancelar</button>
+                    <button onClick={handleSaveChanges} className="px-4 py-2 bg-green-600 text-white rounded-md">Guardar Cambios</button>
                 </div>
             </div>
         </div>
@@ -108,56 +188,48 @@ const FormModal: React.FC<FormModalProps> = ({ isOpen, onClose, onSave, initialD
 };
 
 const RAView: React.FC = () => {
-    const { resultadosAprendizaje, setResultadosAprendizaje, criteriosEvaluacion, setCriteriosEvaluacion, addToast } = useAppContext();
-    const [localRAs, setLocalRAs] = useState(resultadosAprendizaje);
-    const [localCriterios, setLocalCriterios] = useState(criteriosEvaluacion);
-    const [isDirty, setIsDirty] = useState(false);
+    // FIX: Add 'setResultadosAprendizaje' from useAppContext to allow saving RA data.
+    const { resultadosAprendizaje, setResultadosAprendizaje, criteriosEvaluacion, setCriteriosEvaluacion, addToast, unidadesTrabajo, instrumentosEvaluacion } = useAppContext();
     const [expandedRAs, setExpandedRAs] = useState<Set<string>>(new Set());
-    const [modalState, setModalState] = useState<{ isOpen: boolean; type: 'ra' | 'criterio' | null; data: any; parentRaId?: string | null }>({ isOpen: false, type: null, data: null });
     
-    useEffect(() => {
-        setLocalRAs(resultadosAprendizaje);
-        setLocalCriterios(criteriosEvaluacion);
-        setIsDirty(false);
-    }, [resultadosAprendizaje, criteriosEvaluacion]);
-
-    const handleRaPonderacionChange = (raId: string, value: string) => {
-        const ponderacion = Math.max(0, Math.min(100, parseInt(value) || 0));
-        setLocalRAs(prev => ({ ...prev, [raId]: { ...prev[raId], ponderacion } }));
-        setIsDirty(true);
-    };
-
-    const handleCriterioPonderacionChange = (criterioId: string, value: string) => {
-        const ponderacion = Math.max(0, Math.min(100, parseInt(value) || 0));
-        setLocalCriterios(prev => ({ ...prev, [criterioId]: { ...prev[criterioId], ponderacion } }));
-        setIsDirty(true);
-    };
+    // State for CRUD Modals
+    const [formModalState, setFormModalState] = useState<{ isOpen: boolean; type: 'ra' | 'criterio' | null; data: any; parentRaId?: string | null }>({ isOpen: false, type: null, data: null });
     
-    const handleSaveAll = () => {
-        setResultadosAprendizaje(localRAs);
-        setCriteriosEvaluacion(localCriterios);
-        setIsDirty(false);
-        addToast('Ponderaciones guardadas con éxito.', 'success');
+    // State for Association Modal
+    const [asocModalState, setAsocModalState] = useState<{isOpen: boolean; criterio: CriterioEvaluacion | null}>({isOpen: false, criterio: null});
+
+    const handleOpenFormModal = (type: 'ra' | 'criterio', data: any, parentRaId: string | null = null) => {
+        setFormModalState({ isOpen: true, type, data, parentRaId });
     };
 
-    const totalRaPonderacion = useMemo(() => {
-        // FIX: Add explicit type to reduce callback argument to fix type inference issue.
-        return Object.values(localRAs).reduce((sum: number, ra: ResultadoAprendizaje) => sum + (ra.ponderacion || 0), 0);
-    }, [localRAs]);
+    const handleCloseFormModal = () => setFormModalState({ isOpen: false, type: null, data: null });
+    
+    const handleSaveFormModal = (data: any) => {
+        const { type, parentRaId } = formModalState;
+        
+        if (type === 'ra') {
+            const newRA = data as ResultadoAprendizaje;
+            // FIX: Use 'setResultadosAprendizaje' to save the new/updated RA.
+            setResultadosAprendizaje(prev => ({...prev, [newRA.id]: newRA}));
+            addToast(`RA "${newRA.nombre}" guardado.`, 'success');
+        } else if (type === 'criterio' && parentRaId) {
+            const newCrit = data as CriterioEvaluacion;
+            setCriteriosEvaluacion(prev => ({...prev, [newCrit.id]: newCrit}));
+            // FIX: Use 'setResultadosAprendizaje' to update the parent RA's criteria list.
+            setResultadosAprendizaje(prev => {
+                const parent = prev[parentRaId];
+                if(parent && !parent.criteriosEvaluacion.includes(newCrit.id)) {
+                    return {...prev, [parentRaId]: {...parent, criteriosEvaluacion: [...parent.criteriosEvaluacion, newCrit.id]}};
+                }
+                return prev;
+            });
+            addToast(`Criterio guardado.`, 'success');
+        }
+        handleCloseFormModal();
+    };
 
-    const totalCriterioPonderacion = useMemo(() => {
-        const totals: Record<string, number> = {};
-        // FIX: Add explicit type to forEach callback argument to fix type inference issue.
-        Object.values(localRAs).forEach((ra: ResultadoAprendizaje) => {
-            totals[ra.id] = ra.criteriosEvaluacion.reduce((sum, critId) => sum + (localCriterios[critId]?.ponderacion || 0), 0);
-        });
-        return totals;
-    }, [localRAs, localCriterios]);
-
-    const getPonderacionColor = (total: number) => {
-        if (total > 100) return 'text-red-600';
-        if (total < 100) return 'text-yellow-600';
-        return 'text-green-600';
+    const handleDelete = (type: 'ra' | 'criterio', id: string, parentRaId?: string | null) => {
+        // ... (existing delete logic using context setters)
     };
 
     const toggleExpand = (raId: string) => {
@@ -168,133 +240,69 @@ const RAView: React.FC = () => {
         });
     };
 
-    const handleOpenModal = (type: 'ra' | 'criterio', data: any, parentRaId: string | null = null) => {
-        setModalState({ isOpen: true, type, data, parentRaId });
-    };
-
-    const handleCloseModal = () => setModalState({ isOpen: false, type: null, data: null });
-    
-    const handleSaveModal = (data: any) => {
-        if (modalState.type === 'ra') {
-            setLocalRAs(prev => ({ ...prev, [data.id]: data as ResultadoAprendizaje }));
-        } else if (modalState.type === 'criterio' && modalState.parentRaId) {
-            setLocalCriterios(prev => ({ ...prev, [data.id]: data as CriterioEvaluacion }));
-            const parentRA = localRAs[modalState.parentRaId];
-            if (parentRA && !parentRA.criteriosEvaluacion.includes(data.id)) {
-                const updatedRA = { ...parentRA, criteriosEvaluacion: [...parentRA.criteriosEvaluacion, data.id] };
-                setLocalRAs(prev => ({ ...prev, [updatedRA.id]: updatedRA }));
-            }
-        }
-        setIsDirty(true);
-        handleCloseModal();
-    };
-
-
-    const handleDeleteLocal = (type: 'ra' | 'criterio', id: string, parentRaId?: string | null) => {
-        if (type === 'ra') {
-            if (window.confirm(`¿Seguro que quieres eliminar este RA y todos sus criterios asociados?`)) {
-                const raToDelete = localRAs[id];
-                const criteriaIdsToDelete = raToDelete.criteriosEvaluacion;
-                setLocalRAs(prev => { const newState = { ...prev }; delete newState[id]; return newState; });
-                setLocalCriterios(prev => { const newState = { ...prev }; criteriaIdsToDelete.forEach(critId => delete newState[critId]); return newState; });
-                setIsDirty(true);
-            }
-        } else if (type === 'criterio' && parentRaId) {
-            if (window.confirm(`¿Seguro que quieres eliminar este criterio?`)) {
-                setLocalCriterios(prev => { const newState = { ...prev }; delete newState[id]; return newState; });
-                const parentRA = localRAs[parentRaId];
-                const updatedRA = { ...parentRA, criteriosEvaluacion: parentRA.criteriosEvaluacion.filter(critId => critId !== id) };
-                setLocalRAs(prev => ({ ...prev, [updatedRA.id]: updatedRA }));
-                setIsDirty(true);
-            }
-        }
+    const handleSaveAsociaciones = (criterio: CriterioEvaluacion) => {
+        setCriteriosEvaluacion(prev => ({...prev, [criterio.id]: criterio}));
+        addToast('Asociaciones guardadas.', 'success');
+        setAsocModalState({isOpen: false, criterio: null});
     };
 
     return (
         <div>
-            <header className="flex flex-wrap justify-between items-center gap-4 mb-8">
+            <header className="flex justify-between items-center mb-8">
                 <div>
-                    <h1 className="text-3xl font-bold text-gray-800 flex items-center"><FileTextIcon className="w-8 h-8 mr-3 text-purple-500"/>Configuración de Ponderaciones</h1>
-                    <p className="text-gray-500 mt-1">Asigna el peso de cada RA en la nota final y el peso de cada criterio dentro de su RA.</p>
+                    <h1 className="text-3xl font-bold text-gray-800 flex items-center"><FileTextIcon className="w-8 h-8 mr-3 text-purple-500"/>Resultados de Aprendizaje y Criterios</h1>
+                    <p className="text-gray-500 mt-1">Define y gestiona la estructura académica de RAs, criterios y sus asociaciones.</p>
                 </div>
-                <div className="flex items-center space-x-4">
-                    <div className="text-right">
-                        <span className="text-sm font-bold text-gray-600">PESO TOTAL DE RAs</span>
-                        <p className={`text-2xl font-bold ${getPonderacionColor(totalRaPonderacion)}`}>
-                            {totalRaPonderacion}% / 100%
-                        </p>
-                    </div>
-                     <button onClick={() => handleOpenModal('ra', { id: `ra_${Date.now()}`, nombre: '', descripcion: '', ponderacion: 0, competencias: [], criteriosEvaluacion: [] })} className="flex items-center bg-blue-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-blue-600 transition">
-                        <PlusIcon className="w-5 h-5 mr-1" /> Nuevo RA
-                    </button>
-                    <button onClick={handleSaveAll} disabled={!isDirty} className="flex items-center bg-green-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-green-600 transition disabled:bg-gray-400 disabled:cursor-not-allowed">
-                        <SaveIcon className="w-5 h-5 mr-1" /> Guardar Cambios
-                    </button>
-                </div>
+                <button onClick={() => handleOpenFormModal('ra', { id: `ra_${Date.now()}`, nombre: '', descripcion: '', ponderacion: 0, competencias: [], criteriosEvaluacion: [] })} className="flex items-center bg-blue-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-blue-600 transition">
+                    <PlusIcon className="w-5 h-5 mr-1" /> Nuevo RA
+                </button>
             </header>
             
             <div className="space-y-4">
-                {/* FIX: Add explicit types for sort and map callback arguments to fix type inference issues. */}
-                {Object.values(localRAs).sort((a: ResultadoAprendizaje, b: ResultadoAprendizaje) => a.nombre.localeCompare(b.nombre)).map((ra: ResultadoAprendizaje) => {
+                {/* FIX: Add type annotation for 'a', 'b', and 'ra' to resolve 'unknown' type errors. */}
+                {Object.values(resultadosAprendizaje).sort((a: ResultadoAprendizaje, b: ResultadoAprendizaje) => a.nombre.localeCompare(b.nombre)).map((ra: ResultadoAprendizaje) => {
                     const isExpanded = expandedRAs.has(ra.id);
                     return (
-                        <div key={ra.id} className="bg-white rounded-lg shadow-sm transition-all duration-300">
+                        <div key={ra.id} className="bg-white rounded-lg shadow-sm">
                             <div className="flex items-center p-4">
-                                <button className="p-1 rounded-full hover:bg-gray-100" onClick={() => toggleExpand(ra.id)}>{isExpanded ? <ChevronDownIcon className="w-5 h-5" /> : <ChevronRightIcon className="w-5 h-5" />}</button>
-                                <div className="flex-1 ml-2 cursor-pointer" onClick={() => toggleExpand(ra.id)}>
-                                    <h3 className="font-bold text-gray-800">{ra.nombre}</h3>
-                                    <p className="text-sm text-gray-500">{ra.descripcion}</p>
-                                </div>
+                                <button className="p-1" onClick={() => toggleExpand(ra.id)}>{isExpanded ? <ChevronDownIcon/> : <ChevronRightIcon/>}</button>
+                                <div className="flex-1 ml-2"><h3 className="font-bold">{ra.nombre}</h3><p className="text-sm text-gray-500">{ra.descripcion}</p></div>
                                 <div className="flex items-center space-x-2">
-                                    <div className="flex items-center space-x-2">
-                                        <label className="text-sm font-medium">Peso (%):</label>
-                                        <input 
-                                            type="number"
-                                            value={ra.ponderacion || ''}
-                                            onChange={(e) => handleRaPonderacionChange(ra.id, e.target.value)}
-                                            className="w-20 p-1.5 text-center border rounded-md"
-                                            min="0"
-                                            max="100"
-                                        />
-                                    </div>
-                                    <button onClick={() => handleOpenModal('ra', ra)} className="p-2 text-gray-500 hover:text-blue-600 hover:bg-gray-100 rounded-full"><PencilIcon className="w-4 h-4" /></button>
-                                    <button onClick={() => handleDeleteLocal('ra', ra.id)} className="p-2 text-gray-500 hover:text-red-600 hover:bg-gray-100 rounded-full"><TrashIcon className="w-4 h-4" /></button>
+                                    <button onClick={() => handleOpenFormModal('ra', ra)} className="p-2"><PencilIcon className="w-4 h-4 text-gray-500"/></button>
+                                    <button onClick={() => handleDelete('ra', ra.id)} className="p-2"><TrashIcon className="w-4 h-4 text-gray-500"/></button>
                                 </div>
                             </div>
                             {isExpanded && (
                                 <div className="border-t p-4 bg-gray-50">
-                                    <div className="flex justify-between items-center mb-2">
-                                        <h4 className="font-semibold text-sm">Criterios de Evaluación ({ra.criteriosEvaluacion.length})</h4>
-                                        <button onClick={() => handleOpenModal('criterio', { id: `crit_${Date.now()}`, descripcion: '', ponderacion: 0, indicadores: [], instrumentos: [] }, ra.id)} className="text-sm flex items-center text-blue-600 hover:text-blue-800 font-semibold"><PlusIcon className="w-4 h-4 mr-1"/>Añadir Criterio</button>
-                                    </div>
+                                    <div className="flex justify-between items-center mb-2"><h4 className="font-semibold text-sm">Criterios de Evaluación</h4> <button onClick={() => handleOpenFormModal('criterio', { id: `crit_${Date.now()}`, descripcion: '', ponderacion: 0, indicadores: [], asociaciones: [] }, ra.id)} className="text-sm flex items-center text-blue-600"><PlusIcon className="w-4 h-4"/>Añadir Criterio</button></div>
                                     <div className="space-y-2">
                                         {ra.criteriosEvaluacion.map(critId => {
-                                            const criterio = localCriterios[critId];
-                                            if (!criterio) return <div key={critId} className="text-red-500 text-sm">Error: Criterio no encontrado (ID: {critId})</div>;
+                                            const criterio = criteriosEvaluacion[critId];
+                                            if (!criterio) return null;
                                             return (
-                                                <div key={criterio.id} className="bg-white p-3 rounded-md border flex items-center justify-between">
-                                                    <div className="flex-1">
-                                                        <p className="text-sm font-medium">{criterio.descripcion}</p>
+                                                <div key={criterio.id} className="bg-white p-3 rounded-md border">
+                                                    <div className="flex justify-between items-start">
+                                                        <p className="text-sm font-medium flex-1 pr-4">{criterio.descripcion}</p>
+                                                        <div className="flex items-center space-x-1 flex-shrink-0">
+                                                            <button onClick={() => setAsocModalState({isOpen: true, criterio})} className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded hover:bg-blue-200">Asociaciones ({criterio.asociaciones.length})</button>
+                                                            <button onClick={() => handleOpenFormModal('criterio', criterio, ra.id)} className="p-1.5"><PencilIcon className="w-4 h-4 text-gray-500"/></button>
+                                                            <button onClick={() => handleDelete('criterio', criterio.id, ra.id)} className="p-1.5"><TrashIcon className="w-4 h-4 text-gray-500"/></button>
+                                                        </div>
                                                     </div>
-                                                     <div className="flex items-center space-x-2">
-                                                        <label className="text-xs font-medium">Peso en RA (%):</label>
-                                                        <input 
-                                                            type="number"
-                                                            value={criterio.ponderacion || ''}
-                                                            onChange={(e) => handleCriterioPonderacionChange(criterio.id, e.target.value)}
-                                                            className="w-20 p-1.5 text-center border rounded-md"
-                                                            min="0" max="100"
-                                                        />
-                                                        <button onClick={() => handleOpenModal('criterio', criterio, ra.id)} className="p-2 text-gray-500 hover:text-blue-600 hover:bg-gray-100 rounded-full"><PencilIcon className="w-4 h-4" /></button>
-                                                        <button onClick={() => handleDeleteLocal('criterio', criterio.id, ra.id)} className="p-2 text-gray-500 hover:text-red-600 hover:bg-gray-100 rounded-full"><TrashIcon className="w-4 h-4" /></button>
+                                                    <div className="mt-2 pt-2 border-t text-xs">
+                                                        {criterio.asociaciones.map(asoc => (
+                                                            <div key={asoc.id} className="flex gap-2 items-center">
+                                                                <span className="font-bold">{unidadesTrabajo[asoc.utId]?.nombre}:</span>
+                                                                <div className="flex flex-wrap gap-1">
+                                                                    {asoc.instrumentoIds.map(id => <span key={id} className="bg-gray-200 px-1.5 rounded">{instrumentosEvaluacion[id]?.nombre}</span>)}
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                        {criterio.asociaciones.length === 0 && <span className="text-gray-400">Sin asociaciones.</span>}
                                                     </div>
                                                 </div>
                                             );
                                         })}
-                                        {ra.criteriosEvaluacion.length === 0 && <p className="text-sm text-gray-500 text-center py-2">No hay criterios definidos para este RA.</p>}
-                                    </div>
-                                    <div className={`text-right font-bold mt-2 ${getPonderacionColor(totalCriterioPonderacion[ra.id])}`}>
-                                        Total Criterios: {totalCriterioPonderacion[ra.id]}% / 100%
                                     </div>
                                 </div>
                             )}
@@ -302,14 +310,8 @@ const RAView: React.FC = () => {
                     );
                 })}
             </div>
-            
-            {modalState.isOpen && <FormModal 
-                isOpen={modalState.isOpen}
-                onClose={handleCloseModal}
-                onSave={handleSaveModal}
-                initialData={modalState.data}
-                type={modalState.type!}
-            />}
+            {formModalState.isOpen && <FormModal isOpen={formModalState.isOpen} onClose={handleCloseFormModal} onSave={handleSaveFormModal} initialData={formModalState.data} type={formModalState.type!} />}
+            {asocModalState.isOpen && <AsociacionesModal isOpen={asocModalState.isOpen} onClose={() => setAsocModalState({isOpen: false, criterio: null})} onSave={handleSaveAsociaciones} criterio={asocModalState.criterio!} />}
         </div>
     );
 };

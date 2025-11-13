@@ -97,6 +97,8 @@ interface AppContextType {
     handleDeleteInstrumento: (instrumentoId: string) => void;
     handleSaveEntryExitRecord: (record: Omit<EntryExitRecord, 'id' | 'studentId'>, studentIds: string[]) => void;
     handleSavePracticalExam: (evaluation: PracticalExamEvaluation) => void;
+    handleSaveUT: (ut: UnidadTrabajo) => void;
+    handleDeleteUT: (utId: string) => void;
     
     calculatedStudentGrades: Record<string, StudentCalculatedGrades>;
 
@@ -342,15 +344,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                 return newState;
             });
 
-            // Remove from criteria
+            // Remove from criteria associations
             setCriteriosEvaluacion(prev => {
                 const newState = { ...prev };
                 Object.keys(newState).forEach(critId => {
                     const criterio = newState[critId];
-                    const index = criterio.instrumentos.indexOf(instrumentoId);
-                    if (index > -1) {
-                        criterio.instrumentos.splice(index, 1);
-                    }
+                    criterio.asociaciones.forEach(asoc => {
+                        asoc.instrumentoIds = asoc.instrumentoIds.filter(id => id !== instrumentoId);
+                    });
                 });
                 return newState;
             });
@@ -383,6 +384,30 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         addToast('Examen práctico guardado.', 'success');
     };
 
+    const handleSaveUT = (ut: UnidadTrabajo) => {
+        setUnidadesTrabajo(prev => ({ ...prev, [ut.id]: ut }));
+        addToast('Unidad de Trabajo guardada.', 'success');
+    };
+
+    const handleDeleteUT = (utId: string) => {
+        if (window.confirm('¿Seguro que quieres eliminar esta Unidad de Trabajo? Todas las asociaciones con criterios de evaluación se perderán.')) {
+            setUnidadesTrabajo(prev => {
+                const newState = { ...prev };
+                delete newState[utId];
+                return newState;
+            });
+            setCriteriosEvaluacion(prev => {
+                const newState = { ...prev };
+                // FIX: Add type annotation for 'criterio' to resolve 'unknown' type error.
+                Object.values(newState).forEach((criterio: CriterioEvaluacion) => {
+                    criterio.asociaciones = criterio.asociaciones.filter(asoc => asoc.utId !== utId);
+                });
+                return newState;
+            });
+            addToast('Unidad de Trabajo eliminada.', 'info');
+        }
+    };
+
     const contextValue: AppContextType = {
         students, setStudents, practiceGroups, setPracticeGroups, services, setServices, serviceEvaluations, setServiceEvaluations, serviceRoles, setServiceRoles, entryExitRecords, setEntryExitRecords, academicGrades, setAcademicGrades, courseGrades, setCourseGrades, practicalExamEvaluations, setPracticalExamEvaluations, teacherData, setTeacherData, instituteData, setInstituteData,
         trimesterDates, setTrimesterDates,
@@ -394,7 +419,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         toasts, addToast,
         handleFileUpload, handleUpdateStudent,
         handleCreateService, handleSaveServiceAndEvaluation, handleDeleteService, onDeleteRole, handleDeleteInstrumento,
-        handleSaveEntryExitRecord, handleSavePracticalExam,
+        handleSaveEntryExitRecord, handleSavePracticalExam, handleSaveUT, handleDeleteUT,
         calculatedStudentGrades,
         getRA: (raId: string) => resultadosAprendizaje[raId],
         getCriterio: (criterioId: string) => criteriosEvaluacion[criterioId],
