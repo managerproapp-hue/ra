@@ -117,74 +117,77 @@ export const generatePlanningPDF = (viewModel: ReportViewModel) => {
 // --- Tracking Sheet PDF ---
 
 export const generateTrackingSheetPDF = (viewModel: ReportViewModel) => {
-    // This function logic seems quite custom and specific. A simple footer standardization is the main improvement.
-    const { service, groupedStudentsInService, teacherData, instituteData, serviceRoles } = viewModel;
-    const doc = new jsPDF('p', 'mm', 'a4');
-    
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const pageHeight = doc.internal.pageSize.getHeight();
-    const contentWidth = pageWidth - PAGE_MARGIN * 2;
-    const STUDENT_BLOCK_HEIGHT = 73;
+    const { service, participatingStudents, teacherData, instituteData } = viewModel;
+    const doc = new jsPDF('l', 'mm', 'a4'); // Landscape for more columns
 
-    const drawHeader = (groupTitle: string, isContinuation: boolean) => {
+    const didDrawPage = (data: any) => {
+        const doc = data.doc;
+        const pageWidth = doc.internal.pageSize.getWidth();
+        
+        // HEADER
         addImageToPdf(doc, instituteData.logo, PAGE_MARGIN, 10, 15, 15);
         addImageToPdf(doc, teacherData.logo, pageWidth - PAGE_MARGIN - 15, 10, 15, 15);
-        doc.setFontSize(12).setFont('helvetica', 'bold').setTextColor(40);
-        doc.text(`Ficha de Seguimiento: ${service.name}`, pageWidth / 2, 16, { align: 'center' });
+        
+        doc.setFontSize(14).setFont('helvetica', 'bold').setTextColor(40);
+        doc.text(`Ficha de Seguimiento Semanal: ${service.name}`, pageWidth / 2, 18, { align: 'center' });
         doc.setFontSize(10).setFont('helvetica', 'normal').setTextColor(100);
-        doc.text(new Date(service.date + 'T12:00:00Z').toLocaleDateString('es-ES'), pageWidth / 2, 21, { align: 'center' });
-        doc.setFontSize(14).setFont('helvetica', 'bold');
-        doc.text(groupTitle + (isContinuation ? ' (cont.)' : ''), PAGE_MARGIN, 32);
+        doc.text(`Fecha del servicio: ${new Date(service.date).toLocaleDateString('es-ES')}`, pageWidth / 2, 24, { align: 'center' });
+        
+        // FOOTER
+        addFooter(doc, data, teacherData, instituteData);
     };
 
-    let pageCounter = 1;
-    groupedStudentsInService.forEach((groupData, groupIndex) => {
-        if (groupData.students.length === 0) return;
-        if (groupIndex > 0) { pageCounter++; doc.addPage(); }
+    const sortedStudents = [...participatingStudents].sort((a, b) => 
+        a.apellido1.localeCompare(b.apellido1) || (a.apellido2 || '').localeCompare(b.apellido2 || '') || a.nombre.localeCompare(b.nombre)
+    );
 
-        const groupType = service.assignedGroups.comedor.includes(groupData.group.id) ? 'COMEDOR' : 'TAKEAWAY';
-        const groupTitle = `Grupo ${groupData.group.name} - ${groupType}`;
-
-        drawHeader(groupTitle, false);
-        let currentY = 40;
-
-        doc.setFontSize(10).setFont('helvetica', 'normal');
-        doc.text('Observaciones Generales del Grupo:', PAGE_MARGIN, currentY);
-        doc.setDrawColor(180).rect(PAGE_MARGIN, currentY + 2, contentWidth, 15);
-        currentY += 23;
-
-        groupData.students.forEach((student) => {
-            if (currentY + STUDENT_BLOCK_HEIGHT > pageHeight - 15) { 
-                addFooter(doc, { pageNumber: pageCounter }, teacherData, instituteData);
-                pageCounter++;
-                doc.addPage();
-                currentY = 35;
-                drawHeader(groupTitle, true);
-            }
-            const role = serviceRoles.find(r => r.id === service.studentRoles.find(sr => sr.studentId === student.id)?.roleId);
-            // Drawing logic... (remains unchanged)
-            doc.setDrawColor(150).line(PAGE_MARGIN, currentY, pageWidth - PAGE_MARGIN, currentY);
-            currentY += 5;
-            doc.setFontSize(12).setFont('helvetica', 'bold').setTextColor(0).text(`${student.apellido1} ${student.apellido2}, ${student.nombre}`.toUpperCase(), PAGE_MARGIN, currentY);
-            doc.setFontSize(11).setFont('helvetica', 'normal').text(role?.name || '', pageWidth - PAGE_MARGIN, currentY, { align: 'right' });
-            currentY += 8;
-            const col1X = PAGE_MARGIN, col2X = pageWidth / 2 + 5, colWidth = contentWidth / 2 - 5;
-            doc.setFontSize(10).setFont('helvetica', 'bold').text('DÍA PREVIO', col1X, currentY).text('DÍA DE SERVICIO', col2X, currentY);
-            currentY += 5;
-            doc.setFontSize(9).setFont('helvetica', 'normal');
-            const checklist = ['Asistencia: Sí [ ] No [X]', 'Uniforme completo: [ ]', 'Fichas técnicas: [ ]', 'Material requerido: [ ]'];
-            checklist.forEach((item, index) => {
-                doc.text(item, col1X, currentY + (index * 5));
-                doc.text(item, col2X, currentY + (index * 5));
-            });
-            currentY += checklist.length * 5 + 2;
-            doc.setDrawColor(180).rect(col1X, currentY, colWidth, 25).rect(col2X, currentY, colWidth, 25);
-            currentY += STUDENT_BLOCK_HEIGHT - 35;
-        });
-        addFooter(doc, { pageNumber: pageCounter }, teacherData, instituteData);
+    const head = [['#', 'Alumno', 'Asist.', 'Uniforme Compl.', 'Fichas Técnicas', 'Material Req.', 'Conducta', 'Observaciones']];
+    
+    const body = sortedStudents.map((student, index) => {
+        return [
+            index + 1,
+            `${student.apellido1} ${student.apellido2}, ${student.nombre}`,
+            '', // Asistencia
+            '', // Uniforme
+            '', // Fichas
+            '', // Material
+            '', // Conducta
+            ''  // Observaciones
+        ];
     });
 
-    doc.save(`Ficha_Seguimiento_${service.name.replace(/ /g, '_')}.pdf`);
+    autoTable(doc, {
+        head: head,
+        body: body,
+        startY: 32,
+        didDrawPage,
+        margin: { top: 30, bottom: 20 },
+        theme: 'grid',
+        headStyles: { fillColor: [74, 85, 104], fontSize: 8, valign: 'middle' },
+        styles: { fontSize: 8, cellPadding: 1.5, minCellHeight: 10, valign: 'middle' },
+        columnStyles: {
+            0: { cellWidth: 8, halign: 'center' }, // #
+            1: { cellWidth: 60 }, // Alumno
+            2: { cellWidth: 15, halign: 'center' }, // Asistencia
+            3: { cellWidth: 20, halign: 'center' }, // Uniforme Compl.
+            4: { cellWidth: 20, halign: 'center' }, // Fichas Técnicas
+            5: { cellWidth: 20, halign: 'center' }, // Material Req.
+            6: { cellWidth: 15, halign: 'center' }, // Conducta
+            7: { cellWidth: 'auto' }, // Observaciones
+        },
+        didDrawCell: (data) => {
+            // Draw checkboxes for columns 2, 3, 4, 5
+            if (data.section === 'body' && [2, 3, 4, 5].includes(data.column.index)) {
+                const checkBoxSize = 3;
+                const x = data.cell.x + (data.cell.width / 2) - (checkBoxSize / 2);
+                const y = data.cell.y + (data.cell.height / 2) - (checkBoxSize / 2);
+                doc.setDrawColor(150);
+                doc.rect(x, y, checkBoxSize, checkBoxSize);
+            }
+        }
+    });
+
+    doc.save(`Ficha_Seguimiento_Compacta_${service.name.replace(/ /g, '_')}.pdf`);
 };
 
 // --- Full Evaluation Report PDF ---
