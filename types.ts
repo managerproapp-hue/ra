@@ -163,7 +163,6 @@ export interface StudentAcademicGrades {
     [periodKey: string]: StudentAcademicPeriodGrades;
 }
 
-// FIX: Export AcademicGrades interface to be used across the application.
 export interface AcademicGrades {
     [studentId: string]: StudentAcademicGrades;
 }

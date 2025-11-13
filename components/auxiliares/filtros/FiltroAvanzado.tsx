@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { useAppContext } from '../../../context/AppContext';
-// FIX: Import ResultadoAprendizaje to be used for explicit typing.
 import { ResultadoAprendizaje } from '../../../types';
 
 interface FiltrosAvanzadosProps {
@@ -23,7 +22,6 @@ const FiltroAvanzado: React.FC<FiltrosAvanzadosProps> = ({
   datos,
   filtrosIniciales = {},
   onFiltrosCambio,
-  // FIX: Removed default empty object to allow type inference to work correctly with optional chaining.
   filtrosDisponibles,
   className = ''
 }) => {

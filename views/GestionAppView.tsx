@@ -58,6 +58,63 @@ const RoleModal: React.FC<{
 };
 
 
+const RestoreModal: React.FC<{
+    isOpen: boolean;
+    onClose: () => void;
+    onConfirm: () => void;
+    availableKeys: string[];
+    selectedKeys: Set<string>;
+    onKeyToggle: (key: string) => void;
+    onSelectAll: (selectAll: boolean) => void;
+}> = ({ isOpen, onClose, onConfirm, availableKeys, selectedKeys, onKeyToggle, onSelectAll }) => {
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={onClose}>
+            <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-2xl max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
+                <div className="flex justify-between items-center mb-4 pb-4 border-b">
+                    <h3 className="text-xl font-bold text-gray-800">Restauración Selectiva</h3>
+                    <button onClick={onClose} className="p-1 rounded-full hover:bg-gray-200"><XIcon className="w-6 h-6 text-gray-600" /></button>
+                </div>
+                
+                <p className="text-sm text-gray-600 mb-2">Selecciona los módulos de datos que deseas restaurar. Los módulos no seleccionados conservarán sus datos actuales.</p>
+                
+                <div className="flex justify-end space-x-3 mb-3">
+                    <button onClick={() => onSelectAll(true)} className="text-xs font-semibold text-blue-600 hover:underline">Seleccionar todo</button>
+                    <button onClick={() => onSelectAll(false)} className="text-xs font-semibold text-blue-600 hover:underline">Deseleccionar todo</button>
+                </div>
+
+                <div className="flex-1 overflow-y-auto pr-2 border-t border-b py-4">
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                        {availableKeys.map(key => (
+                            <label key={key} className="flex items-center p-2 rounded-md hover:bg-gray-100 cursor-pointer">
+                                <input
+                                    type="checkbox"
+                                    checked={selectedKeys.has(key)}
+                                    onChange={() => onKeyToggle(key)}
+                                    className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                />
+                                <span className="ml-2 text-sm font-medium text-gray-800">{key}</span>
+                            </label>
+                        ))}
+                    </div>
+                </div>
+
+                <div className="flex justify-end space-x-2 pt-4 mt-4">
+                    <button type="button" onClick={onClose} className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 font-semibold">
+                        Cancelar
+                    </button>
+                    <button type="button" onClick={onConfirm} className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-semibold flex items-center">
+                        <UploadIcon className="w-5 h-5 mr-2" />
+                        Confirmar Restauración
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+
 const GestionAppView: React.FC = () => {
     const { 
         teacherData, setTeacherData, instituteData, setInstituteData, 
@@ -70,6 +127,9 @@ const GestionAppView: React.FC = () => {
     const [currentTrimesterDates, setCurrentTrimesterDates] = useState(trimesterDates);
     const [isRoleModalOpen, setIsRoleModalOpen] = useState(false);
     const [editingRole, setEditingRole] = useState<ServiceRole | null>(null);
+    const [isRestoreModalOpen, setIsRestoreModalOpen] = useState(false);
+    const [backupData, setBackupData] = useState<Record<string, any> | null>(null);
+    const [restoreKeys, setRestoreKeys] = useState<Set<string>>(new Set());
     
     const backupOptions = [
         'students', 'practiceGroups', 'services', 'serviceEvaluations', 'serviceRoles', 'entryExitRecords', 
@@ -160,34 +220,83 @@ const GestionAppView: React.FC = () => {
     
     const restoreFileInputRef = useRef<HTMLInputElement>(null);
 
-    const handleRestore = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleRestoreFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
-
-        if (!window.confirm('¡Atención! Restaurar una copia de seguridad sobrescribirá TODOS los datos actuales. ¿Deseas continuar?')) {
-            return;
-        }
 
         const reader = new FileReader();
         reader.onload = (event) => {
             try {
-                const backupData = JSON.parse(event.target?.result as string);
-                Object.keys(backupData).forEach(key => {
-                    localStorage.setItem(key, JSON.stringify(backupData[key]));
-                });
-                addToast('Restauración completada. La aplicación se recargará.', 'success');
-                setTimeout(() => window.location.reload(), 2000);
+                const data = JSON.parse(event.target?.result as string);
+                const dataKeys = Object.keys(data);
+                
+                if (dataKeys.length === 0) {
+                    addToast('El archivo de copia de seguridad está vacío o no es válido.', 'error');
+                    return;
+                }
+
+                setBackupData(data);
+                setRestoreKeys(new Set(dataKeys));
+                setIsRestoreModalOpen(true);
             } catch (error) {
-                addToast('Error al leer el archivo de copia de seguridad.', 'error');
+                addToast('Error al leer el archivo de copia de seguridad. Asegúrate de que es un archivo .json válido.', 'error');
                 console.error(error);
             }
         };
         reader.readAsText(file);
+        
+        e.target.value = '';
+    };
+
+    const executeRestore = () => {
+        if (!backupData || restoreKeys.size === 0) {
+            addToast('No hay datos o módulos seleccionados para restaurar.', 'info');
+            return;
+        }
+
+        if (window.confirm(`¡Atención! Esto sobrescribirá los ${restoreKeys.size} módulos de datos seleccionados. Los datos no seleccionados no se verán afectados. ¿Deseas continuar?`)) {
+            try {
+                restoreKeys.forEach(key => {
+                    if (backupData.hasOwnProperty(key)) {
+                        localStorage.setItem(key, JSON.stringify(backupData[key]));
+                    }
+                });
+                addToast('Restauración selectiva completada. La aplicación se recargará.', 'success');
+                setTimeout(() => window.location.reload(), 2000);
+            } catch (error) {
+                addToast('Ocurrió un error durante la restauración.', 'error');
+                console.error(error);
+            } finally {
+                setIsRestoreModalOpen(false);
+                setBackupData(null);
+                setRestoreKeys(new Set());
+            }
+        }
     };
 
     const toggleBackupKey = (key: string) => {
         setBackupKeys(prev => prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]);
     }
+    
+    const handleToggleRestoreKey = (key: string) => {
+        setRestoreKeys(prev => {
+            const newSet = new Set(prev);
+            if (newSet.has(key)) {
+                newSet.delete(key);
+            } else {
+                newSet.add(key);
+            }
+            return newSet;
+        });
+    };
+
+    const handleSelectAllRestoreKeys = (selectAll: boolean) => {
+        if (selectAll && backupData) {
+            setRestoreKeys(new Set(Object.keys(backupData)));
+        } else {
+            setRestoreKeys(new Set());
+        }
+    };
 
     return (
         <div>
@@ -316,15 +425,24 @@ const GestionAppView: React.FC = () => {
                             </div>
                             <div className="border-t pt-4">
                                 <h4 className="font-bold mb-2">Restaurar Copia de Seguridad</h4>
-                                <p className="text-sm text-red-600 bg-red-50 p-2 rounded-md mb-3"><strong>¡Atención!</strong> Esto reemplazará todos los datos actuales de la aplicación.</p>
-                                <input type="file" accept=".json" onChange={handleRestore} ref={restoreFileInputRef} className="hidden" />
-                                <button onClick={() => restoreFileInputRef.current?.click()} className="w-full flex items-center justify-center bg-gray-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-gray-700 transition"><UploadIcon className="w-5 h-5 mr-2" />Seleccionar Archivo y Restaurar</button>
+                                <p className="text-sm text-gray-600 bg-gray-50 p-2 rounded-md mb-3">Restaura datos desde un archivo de copia de seguridad. Podrás seleccionar qué módulos de datos quieres restaurar.</p>
+                                <input type="file" accept=".json" onChange={handleRestoreFileSelect} ref={restoreFileInputRef} className="hidden" />
+                                <button onClick={() => restoreFileInputRef.current?.click()} className="w-full flex items-center justify-center bg-gray-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-gray-700 transition"><UploadIcon className="w-5 h-5 mr-2" />Seleccionar Archivo de Backup...</button>
                             </div>
                          </div>
                     </DataCard>
                 </div>
             </div>
             <RoleModal isOpen={isRoleModalOpen} onClose={() => setIsRoleModalOpen(false)} role={editingRole} onSave={handleSaveRole} />
+             <RestoreModal
+                isOpen={isRestoreModalOpen}
+                onClose={() => setIsRestoreModalOpen(false)}
+                onConfirm={executeRestore}
+                availableKeys={backupData ? Object.keys(backupData) : []}
+                selectedKeys={restoreKeys}
+                onKeyToggle={handleToggleRestoreKey}
+                onSelectAll={handleSelectAllRestoreKeys}
+            />
         </div>
     );
 };

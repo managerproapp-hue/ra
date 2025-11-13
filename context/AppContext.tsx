@@ -181,77 +181,86 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const calculatedStudentGrades = useMemo((): Record<string, StudentCalculatedGrades> => {
         const studentGrades: Record<string, StudentCalculatedGrades> = {};
 
+        // Pre-calculate services per trimester to avoid re-filtering
+        const servicesByTrimester = {
+            t1: services.filter(s => s.trimester === 't1'),
+            t2: services.filter(s => s.trimester === 't2'),
+            t3: services.filter(s => s.trimester === 't3'),
+        };
+
         students.forEach(student => {
             const t1Exam = practicalExamEvaluations.find(e => e.studentId === student.id && e.examPeriod === 't1');
             const t2Exam = practicalExamEvaluations.find(e => e.studentId === student.id && e.examPeriod === 't2');
+            const t3Exam = practicalExamEvaluations.find(e => e.studentId === student.id && e.examPeriod === 't3');
             const recExam = practicalExamEvaluations.find(e => e.studentId === student.id && e.examPeriod === 'rec');
 
-            const trimesterScores: {
-                t1: { individual: number[], group: number[] },
-                t2: { individual: number[], group: number[] },
+            const trimesterTotalScores: {
+                t1: number;
+                t2: number;
+                t3: number;
             } = {
-                t1: { individual: [], group: [] },
-                t2: { individual: [], group: [] },
+                t1: 0,
+                t2: 0,
+                t3: 0,
             };
 
+            // Calculate total scores for attended services
             serviceEvaluations.forEach(evaluation => {
                 const service = services.find(s => s.id === evaluation.serviceId);
-                if (!service || (service.trimester !== 't1' && service.trimester !== 't2')) return;
-
-                const trimester = service.trimester;
+                if (!service || !service.trimester) return;
                 
                 const individualEval = evaluation.serviceDay.individualScores[student.id];
+                
+                // Only process if student was present. Absences contribute 0 to the total score.
                 if (individualEval && individualEval.attendance) {
-                    const hasIndividualScores = individualEval.scores && individualEval.scores.some(s => s !== null);
-                    if (hasIndividualScores) {
-                        const individualScore = (individualEval.scores || []).reduce((sum, score) => sum + (score || 0), 0);
-                        trimesterScores[trimester].individual.push(individualScore);
+                    let serviceScore = 0;
+                    let weightsUsed = 0;
+
+                    const individualScoreRaw = (individualEval.scores || []).reduce((sum: number, score: number | null) => sum + (score || 0), 0);
+                    if (individualScoreRaw > 0) {
+                        serviceScore += individualScoreRaw * SERVICE_GRADE_WEIGHTS.individual;
+                        weightsUsed += SERVICE_GRADE_WEIGHTS.individual;
                     }
 
                     const studentPracticeGroup = practiceGroups.find(pg => pg.studentIds.includes(student.id));
                     if (studentPracticeGroup) {
                         const groupEval = evaluation.serviceDay.groupScores[studentPracticeGroup.id];
-                        const hasGroupScores = groupEval && groupEval.scores && groupEval.scores.some(s => s !== null);
-                        if (hasGroupScores) {
-                            let groupScore = (groupEval.scores || []).reduce((sum, score) => sum + (score || 0), 0);
-                            
+                        const groupScoreRaw = groupEval ? (groupEval.scores || []).reduce((sum: number, score: number | null) => sum + (score || 0), 0) : 0;
+                        
+                        if (groupScoreRaw > 0) {
+                            let groupScore = groupScoreRaw;
                             if (individualEval.halveGroupScore === true) {
-                                groupScore = groupScore / 2;
+                                groupScore /= 2;
                             }
-
-                            trimesterScores[trimester].group.push(groupScore);
+                            serviceScore += groupScore * SERVICE_GRADE_WEIGHTS.group;
+                            weightsUsed += SERVICE_GRADE_WEIGHTS.group;
                         }
+                    }
+
+                    // Normalize to 10 if only one component (individual or group) had a score
+                    if (weightsUsed > 0 && weightsUsed < 1) {
+                         serviceScore /= weightsUsed;
+                    }
+                    
+                    if (trimesterTotalScores.hasOwnProperty(service.trimester)) {
+                        trimesterTotalScores[service.trimester] += serviceScore;
                     }
                 }
             });
             
-            const serviceAverages: { t1: number | null, t2: number | null } = { t1: null, t2: null };
-
-            (['t1', 't2'] as const).forEach(trimester => {
-                const individualAvg = trimesterScores[trimester].individual.length > 0
-                    ? trimesterScores[trimester].individual.reduce((a, b) => a + b, 0) / trimesterScores[trimester].individual.length
-                    : null;
-                
-                const groupAvg = trimesterScores[trimester].group.length > 0
-                    ? trimesterScores[trimester].group.reduce((a, b) => a + b, 0) / trimesterScores[trimester].group.length
-                    : null;
-
-                if (individualAvg !== null && groupAvg !== null) {
-                    serviceAverages[trimester] = (individualAvg * SERVICE_GRADE_WEIGHTS.individual) + (groupAvg * SERVICE_GRADE_WEIGHTS.group);
-                } else if (individualAvg !== null) {
-                    serviceAverages[trimester] = individualAvg;
-                } else if (groupAvg !== null) {
-                    serviceAverages[trimester] = groupAvg;
-                } else {
-                    serviceAverages[trimester] = null;
-                }
-            });
+            // Calculate final averages by dividing by total planned services per trimester
+            const serviceAverages: { t1: number | null, t2: number | null, t3: number | null } = {
+                t1: servicesByTrimester.t1.length > 0 ? trimesterTotalScores.t1 / servicesByTrimester.t1.length : null,
+                t2: servicesByTrimester.t2.length > 0 ? trimesterTotalScores.t2 / servicesByTrimester.t2.length : null,
+                t3: servicesByTrimester.t3.length > 0 ? trimesterTotalScores.t3 / servicesByTrimester.t3.length : null,
+            };
             
             studentGrades[student.id] = {
                 serviceAverages,
                 practicalExams: {
                     t1: t1Exam?.finalScore ?? null,
                     t2: t2Exam?.finalScore ?? null,
+                    t3: t3Exam?.finalScore ?? null,
                     rec: recExam?.finalScore ?? null,
                 }
             };

@@ -309,5 +309,4 @@ const GestionAcademica: React.FC<GestionAcademicaProps> = ({
   );
 };
 
-// FIX: Correct the export name to match the component name.
 export default GestionAcademica;

@@ -141,12 +141,14 @@ const RAView: React.FC = () => {
     };
 
     const totalRaPonderacion = useMemo(() => {
-        return Object.values(localRAs).reduce((sum, ra) => sum + (ra.ponderacion || 0), 0);
+        // FIX: Add explicit type to reduce callback argument to fix type inference issue.
+        return Object.values(localRAs).reduce((sum: number, ra: ResultadoAprendizaje) => sum + (ra.ponderacion || 0), 0);
     }, [localRAs]);
 
     const totalCriterioPonderacion = useMemo(() => {
         const totals: Record<string, number> = {};
-        Object.values(localRAs).forEach(ra => {
+        // FIX: Add explicit type to forEach callback argument to fix type inference issue.
+        Object.values(localRAs).forEach((ra: ResultadoAprendizaje) => {
             totals[ra.id] = ra.criteriosEvaluacion.reduce((sum, critId) => sum + (localCriterios[critId]?.ponderacion || 0), 0);
         });
         return totals;
