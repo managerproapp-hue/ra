@@ -141,16 +141,27 @@ export const generateTrackingSheetPDF = (viewModel: ReportViewModel) => {
         a.apellido1.localeCompare(b.apellido1) || (a.apellido2 || '').localeCompare(b.apellido2 || '') || a.nombre.localeCompare(b.nombre)
     );
 
-    const head = [['#', 'Alumno', 'Asist.', 'Uniforme Compl.', 'Fichas Técnicas', 'Material Req.', 'Conducta', 'Observaciones']];
+    const head = [
+        [
+            { content: '#', rowSpan: 2, styles: { valign: 'middle'} },
+            { content: 'Alumno', rowSpan: 2, styles: { valign: 'middle'} },
+            { content: 'Día 1', colSpan: 4, styles: { halign: 'center' } },
+            { content: 'Día 2', colSpan: 4, styles: { halign: 'center' } },
+            { content: 'Conducta Semanal', rowSpan: 2, styles: { valign: 'middle'} },
+            { content: 'Observaciones', rowSpan: 2, styles: { valign: 'middle'} },
+        ],
+        [
+            'Asis.', 'Unif.', 'Fichas', 'Mat.',
+            'Asis.', 'Unif.', 'Fichas', 'Mat.',
+        ]
+    ];
     
     const body = sortedStudents.map((student, index) => {
         return [
             index + 1,
             `${student.apellido1} ${student.apellido2}, ${student.nombre}`,
-            '', // Asistencia
-            '', // Uniforme
-            '', // Fichas
-            '', // Material
+            '', '', '', '', // Día 1
+            '', '', '', '', // Día 2
             '', // Conducta
             ''  // Observaciones
         ];
@@ -167,17 +178,21 @@ export const generateTrackingSheetPDF = (viewModel: ReportViewModel) => {
         styles: { fontSize: 8, cellPadding: 1.5, minCellHeight: 10, valign: 'middle' },
         columnStyles: {
             0: { cellWidth: 8, halign: 'center' }, // #
-            1: { cellWidth: 60 }, // Alumno
-            2: { cellWidth: 15, halign: 'center' }, // Asistencia
-            3: { cellWidth: 20, halign: 'center' }, // Uniforme Compl.
-            4: { cellWidth: 20, halign: 'center' }, // Fichas Técnicas
-            5: { cellWidth: 20, halign: 'center' }, // Material Req.
-            6: { cellWidth: 15, halign: 'center' }, // Conducta
-            7: { cellWidth: 'auto' }, // Observaciones
+            1: { cellWidth: 55 }, // Alumno
+            2: { cellWidth: 12, halign: 'center' }, // D1 Asist.
+            3: { cellWidth: 12, halign: 'center' }, // D1 Unif.
+            4: { cellWidth: 12, halign: 'center' }, // D1 Fichas
+            5: { cellWidth: 12, halign: 'center' }, // D1 Mat.
+            6: { cellWidth: 12, halign: 'center' }, // D2 Asist.
+            7: { cellWidth: 12, halign: 'center' }, // D2 Unif.
+            8: { cellWidth: 12, halign: 'center' }, // D2 Fichas
+            9: { cellWidth: 12, halign: 'center' }, // D2 Mat.
+            10: { cellWidth: 25, halign: 'center' }, // Conducta
+            11: { cellWidth: 'auto' }, // Observaciones
         },
         didDrawCell: (data) => {
-            // Draw checkboxes for columns 2, 3, 4, 5
-            if (data.section === 'body' && [2, 3, 4, 5].includes(data.column.index)) {
+            // Draw checkboxes for day 1 and day 2 columns
+            if (data.section === 'body' && data.column.index >= 2 && data.column.index <= 9) {
                 const checkBoxSize = 3;
                 const x = data.cell.x + (data.cell.width / 2) - (checkBoxSize / 2);
                 const y = data.cell.y + (data.cell.height / 2) - (checkBoxSize / 2);
@@ -187,7 +202,7 @@ export const generateTrackingSheetPDF = (viewModel: ReportViewModel) => {
         }
     });
 
-    doc.save(`Ficha_Seguimiento_Compacta_${service.name.replace(/ /g, '_')}.pdf`);
+    doc.save(`Ficha_Seguimiento_Semanal_${service.name.replace(/ /g, '_')}.pdf`);
 };
 
 // --- Full Evaluation Report PDF ---

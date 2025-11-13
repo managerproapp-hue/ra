@@ -11,7 +11,9 @@ export const criteriosEvaluacion: Record<string, CriterioEvaluacion> = {
       'Logra texturas y puntos de cocción apropiados'
     ],
     ponderacion: 20,
-    instrumentos: ['observacion_sistematica', 'lista_verificacion']
+    asociaciones: [
+        { id: 'asoc_c001_ut1', utId: 'ut1', instrumentoIds: ['examen', 'practica_diaria'] }
+    ]
   },
   cocina_002: {
     id: 'cocina_002',
@@ -22,7 +24,9 @@ export const criteriosEvaluacion: Record<string, CriterioEvaluacion> = {
       'Demuestra eficiencia en el manejo de herramientas'
     ],
     ponderacion: 15,
-    instrumentos: ['evaluacion_practica', 'portafolio']
+    asociaciones: [
+        { id: 'asoc_c002_ut1', utId: 'ut1', instrumentoIds: ['ex_practico'] }
+    ]
   },
   cocina_003: {
     id: 'cocina_003',
@@ -33,7 +37,9 @@ export const criteriosEvaluacion: Record<string, CriterioEvaluacion> = {
       'Conserva alimentos según normativas'
     ],
     ponderacion: 25,
-    instrumentos: ['lista_verificacion', 'evaluacion_continua']
+    asociaciones: [
+        { id: 'asoc_c003_ut2', utId: 'ut2', instrumentoIds: ['servicios'] }
+    ]
   },
   cocina_004: {
     id: 'cocina_004',
@@ -44,7 +50,7 @@ export const criteriosEvaluacion: Record<string, CriterioEvaluacion> = {
       'Respeta jerarquías y protocolos de cocina'
     ],
     ponderacion: 15,
-    instrumentos: ['coevaluacion', 'observacion_sistematica']
+    asociaciones: []
   },
   cocina_005: {
     id: 'cocina_005',
@@ -55,7 +61,9 @@ export const criteriosEvaluacion: Record<string, CriterioEvaluacion> = {
       'Mantiene orden y limpieza en su área'
     ],
     ponderacion: 25,
-    instrumentos: ['autoevaluacion', 'portafolio']
+    asociaciones: [
+        { id: 'asoc_c005_ut3', utId: 'ut3', instrumentoIds: ['practica_diaria'] }
+    ]
   },
   // Criterios para Cocina Mediterránea
   med_001: {
@@ -67,7 +75,9 @@ export const criteriosEvaluacion: Record<string, CriterioEvaluacion> = {
       'Identifica productos locales y regionales'
     ],
     ponderacion: 20,
-    instrumentos: ['evaluacion_teorica', 'observacion_sistematica']
+    asociaciones: [
+        { id: 'asoc_m001_ut2', utId: 'ut2', instrumentoIds: ['trabajos'] }
+    ]
   },
   med_002: {
     id: 'med_002',
@@ -78,7 +88,7 @@ export const criteriosEvaluacion: Record<string, CriterioEvaluacion> = {
       'Conserva sabores y tradiciones culinarias'
     ],
     ponderacion: 25,
-    instrumentos: ['evaluacion_practica', 'proyecto_realizacion']
+    asociaciones: []
   },
   // Criterios para Panadería
   pan_001: {
@@ -90,6 +100,8 @@ export const criteriosEvaluacion: Record<string, CriterioEvaluacion> = {
       'Logra texturas y volúmenes apropiados'
     ],
     ponderacion: 30,
-    instrumentos: ['evaluacion_practica', 'observacion_sistematica']
+    asociaciones: [
+        { id: 'asoc_p001_ut3', utId: 'ut3', instrumentoIds: ['fichas', 'ex_practico'] }
+    ]
   }
 };
