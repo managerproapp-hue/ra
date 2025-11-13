@@ -97,6 +97,7 @@ interface AppContextType {
     handleDeleteInstrumento: (instrumentoId: string) => void;
     handleSaveEntryExitRecord: (record: Omit<EntryExitRecord, 'id' | 'studentId'>, studentIds: string[]) => void;
     handleSavePracticalExam: (evaluation: PracticalExamEvaluation) => void;
+    handleResetApp: () => void;
     
     calculatedStudentGrades: Record<string, StudentCalculatedGrades>;
 
@@ -374,6 +375,29 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         addToast('Examen práctico guardado.', 'success');
     };
 
+    const handleResetApp = () => {
+        const keysToRemove = [
+            'students', 'practiceGroups', 'services', 'serviceEvaluations',
+            'serviceRoles', 'entryExitRecords', 'academicGrades', 'courseGrades',
+            'practicalExamEvaluations', 'teacher-app-data', 'institute-app-data',
+            'trimester-dates', 'resultadosAprendizaje', 'criteriosEvaluacion',
+            'instrumentosEvaluacion', 'profesores', 'unidadesTrabajo'
+        ];
+
+        keysToRemove.forEach(key => {
+            try {
+                window.localStorage.removeItem(key);
+            } catch (error) {
+                console.error(`Error removing key ${key} from local storage:`, error);
+            }
+        });
+
+        addToast('Aplicación reseteada. Recargando...', 'success');
+        setTimeout(() => {
+            window.location.reload();
+        }, 1500);
+    };
+
     const saveRA = (data: Partial<Omit<ResultadoAprendizaje, 'id' | 'criteriosEvaluacion'>>, id?: string) => {
         const raId = id || `ra_${Date.now()}`;
         setResultadosAprendizaje(prev => {
@@ -467,7 +491,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         toasts, addToast,
         handleFileUpload, handleUpdateStudent,
         handleCreateService, handleSaveServiceAndEvaluation, handleDeleteService, onDeleteRole, handleDeleteInstrumento,
-        handleSaveEntryExitRecord, handleSavePracticalExam,
+        handleSaveEntryExitRecord, handleSavePracticalExam, handleResetApp,
         calculatedStudentGrades,
         saveRA, deleteRA, saveCriterio, deleteCriterio,
         getRA: (raId: string) => resultadosAprendizaje[raId],

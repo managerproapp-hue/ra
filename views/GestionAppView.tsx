@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { ServiceRole, TrimesterDates } from '../types';
-import { SettingsIcon, SaveIcon, PlusIcon, TrashIcon, UploadIcon, ExportIcon, XIcon, CalendarDaysIcon } from '../components/icons';
+import { SettingsIcon, SaveIcon, PlusIcon, TrashIcon, UploadIcon, ExportIcon, XIcon, CalendarDaysIcon, AlertTriangleIcon } from '../components/icons';
 import { useAppContext } from '../context/AppContext';
 
 const DataCard: React.FC<{ title: string; children: React.ReactNode; }> = ({ title, children }) => (
@@ -114,12 +114,80 @@ const RestoreModal: React.FC<{
     );
 };
 
+const ResetConfirmationModal: React.FC<{
+    isOpen: boolean;
+    onClose: () => void;
+    onConfirm: () => void;
+}> = ({ isOpen, onClose, onConfirm }) => {
+    const [confirmationText, setConfirmationText] = useState('');
+    const requiredText = 'BORRAR DATOS';
+
+    useEffect(() => {
+        if (isOpen) {
+            setConfirmationText('');
+        }
+    }, [isOpen]);
+
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4" onClick={onClose}>
+            <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md" onClick={e => e.stopPropagation()}>
+                <div className="flex items-start">
+                    <div className="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10">
+                        <AlertTriangleIcon className="h-6 w-6 text-red-600" aria-hidden="true" />
+                    </div>
+                    <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
+                        <h3 className="text-lg leading-6 font-bold text-gray-900">
+                            Resetear la aplicación
+                        </h3>
+                        <div className="mt-2">
+                            <p className="text-sm text-gray-500">
+                                ¿Estás absolutamente seguro? Esta acción es irreversible y eliminará permanentemente todos los datos, incluyendo alumnos, grupos, servicios y calificaciones.
+                            </p>
+                            <p className="mt-4 text-sm text-gray-500">
+                                Para confirmar, por favor escribe <strong className="text-red-700">{requiredText}</strong> en el campo de abajo.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                <div className="mt-5">
+                    <input
+                        type="text"
+                        value={confirmationText}
+                        onChange={(e) => setConfirmationText(e.target.value)}
+                        className="w-full p-2 border border-gray-300 rounded-md shadow-sm"
+                        placeholder={requiredText}
+                    />
+                </div>
+                <div className="mt-5 sm:mt-4 sm:flex sm:flex-row-reverse">
+                    <button
+                        type="button"
+                        className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 sm:ml-3 sm:w-auto sm:text-sm disabled:bg-red-300 disabled:cursor-not-allowed"
+                        onClick={onConfirm}
+                        disabled={confirmationText !== requiredText}
+                    >
+                        Entiendo las consecuencias, borrar todo
+                    </button>
+                    <button
+                        type="button"
+                        className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:w-auto sm:text-sm"
+                        onClick={onClose}
+                    >
+                        Cancelar
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 
 const GestionAppView: React.FC = () => {
     const { 
         teacherData, setTeacherData, instituteData, setInstituteData, 
         serviceRoles, setServiceRoles, onDeleteRole, addToast,
-        trimesterDates, setTrimesterDates
+        trimesterDates, setTrimesterDates, handleResetApp
     } = useAppContext();
     
     const [currentTeacherData, setCurrentTeacherData] = useState(teacherData);
@@ -128,6 +196,7 @@ const GestionAppView: React.FC = () => {
     const [isRoleModalOpen, setIsRoleModalOpen] = useState(false);
     const [editingRole, setEditingRole] = useState<ServiceRole | null>(null);
     const [isRestoreModalOpen, setIsRestoreModalOpen] = useState(false);
+    const [isResetModalOpen, setIsResetModalOpen] = useState(false);
     const [backupData, setBackupData] = useState<Record<string, any> | null>(null);
     const [restoreKeys, setRestoreKeys] = useState<Set<string>>(new Set());
     
@@ -433,6 +502,36 @@ const GestionAppView: React.FC = () => {
                     </DataCard>
                 </div>
             </div>
+
+            <div className="mt-8">
+                <DataCard title="Zona de Peligro">
+                    <div className="bg-red-50 border-l-4 border-red-400 p-4 rounded-r-lg">
+                        <div className="flex">
+                            <div className="flex-shrink-0">
+                                <AlertTriangleIcon className="h-5 w-5 text-red-400" aria-hidden="true" />
+                            </div>
+                            <div className="ml-3">
+                                <h3 className="text-sm font-bold text-red-800">Resetear Aplicación</h3>
+                                <div className="mt-2 text-sm text-red-700">
+                                    <p>
+                                        Esta acción borrará permanentemente todos los datos de la aplicación. Es irreversible.
+                                        Se recomienda crear una copia de seguridad antes de proceder.
+                                    </p>
+                                </div>
+                                <div className="mt-4">
+                                    <button
+                                        onClick={() => setIsResetModalOpen(true)}
+                                        className="px-4 py-2 bg-red-600 text-white font-semibold rounded-md hover:bg-red-700"
+                                    >
+                                        Borrar Todos los Datos
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </DataCard>
+            </div>
+
             <RoleModal isOpen={isRoleModalOpen} onClose={() => setIsRoleModalOpen(false)} role={editingRole} onSave={handleSaveRole} />
              <RestoreModal
                 isOpen={isRestoreModalOpen}
@@ -442,6 +541,14 @@ const GestionAppView: React.FC = () => {
                 selectedKeys={restoreKeys}
                 onKeyToggle={handleToggleRestoreKey}
                 onSelectAll={handleSelectAllRestoreKeys}
+            />
+            <ResetConfirmationModal
+                isOpen={isResetModalOpen}
+                onClose={() => setIsResetModalOpen(false)}
+                onConfirm={() => {
+                    setIsResetModalOpen(false);
+                    handleResetApp();
+                }}
             />
         </div>
     );
