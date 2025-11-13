@@ -196,7 +196,6 @@ const FichaAlumno: React.FC<FichaAlumnoProps> = ({ student, onBack, entryExitRec
             <nav className="flex space-x-2">
                 <Tab label="Información General" isActive={activeTab === 'general'} onClick={() => setActiveTab('general')} />
                 <Tab label="Resumen Académico" isActive={activeTab === 'academico'} onClick={() => setActiveTab('academico')} />
-                <Tab label="Proyectos" isActive={activeTab === 'proyectos'} onClick={() => setActiveTab('proyectos')} />
             </nav>
         </div>
 
@@ -317,75 +316,6 @@ const FichaAlumno: React.FC<FichaAlumnoProps> = ({ student, onBack, entryExitRec
                                 })}
                             </tbody>
                         </table>
-                    </div>
-                </div>
-            </div>
-        )}
-
-        {activeTab === 'proyectos' && (
-            <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-                <div className="xl:col-span-2 bg-white shadow-md rounded-lg overflow-hidden">
-                    <div className="p-4 border-b flex justify-between items-center">
-                        <h3 className="text-lg font-bold text-gray-800">Proyectos Modulares</h3>
-                        <button className="flex items-center bg-green-500 text-white px-3 py-1.5 rounded-lg font-semibold hover:bg-green-600 transition text-sm">
-                            <PlusIcon className="w-4 h-4 mr-1" />
-                            Registrar Proyecto
-                        </button>
-                    </div>
-                    <div className="overflow-x-auto">
-                        <table className="min-w-full text-sm">
-                            <thead className="bg-gray-50 text-left">
-                                <tr>
-                                    <th className="px-4 py-2 font-semibold text-gray-600">Proyecto</th>
-                                    <th className="px-4 py-2 font-semibold text-gray-600">Calificación</th>
-                                    <th className="px-4 py-2 font-semibold text-gray-600">Trimestre</th>
-                                    <th className="px-4 py-2 font-semibold text-gray-600">Feedback</th>
-                                    <th className="px-4 py-2 font-semibold text-gray-600">Acciones</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-200">
-                                <tr>
-                                    <td className="px-4 py-2 font-medium">Proyecto Cocina Molecular</td>
-                                    <td className="px-4 py-2 font-bold text-green-700">8.5</td>
-                                    <td className="px-4 py-2">2º Trimestre</td>
-                                    <td className="px-4 py-2 text-gray-600">Buen trabajo en la presentación...</td>
-                                    <td className="px-4 py-2"><button className="text-blue-600 hover:underline">Ver Detalles</button></td>
-                                </tr>
-                                <tr>
-                                    <td className="px-4 py-2 font-medium">Investigación de Ingredientes Locales</td>
-                                    <td className="px-4 py-2 font-bold text-green-700">9.2</td>
-                                    <td className="px-4 py-2">1º Trimestre</td>
-                                    <td className="px-4 py-2 text-gray-600">Excelente investigación y documentación.</td>
-                                    <td className="px-4 py-2"><button className="text-blue-600 hover:underline">Ver Detalles</button></td>
-                                </tr>
-                                 <tr>
-                                    <td className="px-4 py-2 font-medium">Cocina de Vanguardia: Espumas y Aires</td>
-                                    <td className="px-4 py-2 font-bold text-yellow-700">6.8</td>
-                                    <td className="px-4 py-2">2º Trimestre</td>
-                                    <td className="px-4 py-2 text-gray-600">La técnica es correcta pero falta creatividad.</td>
-                                    <td className="px-4 py-2"><button className="text-blue-600 hover:underline">Ver Detalles</button></td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-                <div className="space-y-6">
-                    <div className="bg-white shadow-md rounded-lg p-4">
-                        <h3 className="text-md font-bold text-gray-800 mb-2">Resumen de Proyectos</h3>
-                        <div className="space-y-3">
-                            <div className="bg-blue-50 p-3 rounded-md">
-                                <p className="text-sm text-blue-800 font-semibold">Proyectos Completados</p>
-                                <p className="text-2xl font-bold text-blue-900">3</p>
-                            </div>
-                            <div className="bg-green-50 p-3 rounded-md">
-                                <p className="text-sm text-green-800 font-semibold">Nota Media de Proyectos</p>
-                                <p className="text-2xl font-bold text-green-900">8.2</p>
-                            </div>
-                             <div className="bg-gray-100 p-3 rounded-md">
-                                <p className="text-sm text-gray-600 font-semibold">Último Proyecto Calificado</p>
-                                <p className="font-bold text-gray-800">Cocina de Vanguardia (6.8)</p>
-                            </div>
-                        </div>
                     </div>
                 </div>
             </div>
