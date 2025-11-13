@@ -213,7 +213,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                         const groupEval = evaluation.serviceDay.groupScores[studentPracticeGroup.id];
                         const hasGroupScores = groupEval && groupEval.scores && groupEval.scores.some(s => s !== null);
                         if (hasGroupScores) {
-                            const groupScore = (groupEval.scores || []).reduce((sum, score) => sum + (score || 0), 0);
+                            let groupScore = (groupEval.scores || []).reduce((sum, score) => sum + (score || 0), 0);
+                            
+                            if (individualEval.halveGroupScore === true) {
+                                groupScore = groupScore / 2;
+                            }
+
                             trimesterScores[trimester].group.push(groupScore);
                         }
                     }

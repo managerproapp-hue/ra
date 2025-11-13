@@ -198,6 +198,30 @@ const ServiceDayIndividualEvaluationTable: React.FC<{
                         ))}
                     </tr>
                     <tr>
+                        <td className="p-2 border text-left font-medium">Participación Grupal</td>
+                        {studentsInGroup.map(s => {
+                            const studentEval = evaluationData[s.id];
+                            const isHalved = studentEval?.halveGroupScore === true;
+                            const isAbsent = !(studentEval?.attendance ?? true);
+                            return (
+                                <td key={s.id} className="p-1 border text-center align-middle">
+                                    <button
+                                        onClick={() => onUpdate(s.id, { halveGroupScore: !isHalved })}
+                                        disabled={isLocked || isAbsent}
+                                        className={`px-2 py-1 text-xs rounded w-full font-semibold transition-colors ${
+                                            isHalved
+                                                ? 'bg-yellow-500 hover:bg-yellow-600 text-white'
+                                                : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
+                                        } disabled:opacity-50 disabled:cursor-not-allowed`}
+                                        title={isHalved ? "La nota grupal se reduce a la mitad por baja participación." : "La nota grupal cuenta al 100%."}
+                                    >
+                                        {isHalved ? 'Penalizado (50%)' : 'Normal (100%)'}
+                                    </button>
+                                </td>
+                            );
+                        })}
+                    </tr>
+                    <tr>
                         <td className="p-2 border text-left font-medium">Incidencias (Salidas/Entradas)</td>
                         {studentsInGroup.map(s => (
                              <td key={s.id} className="p-2 border align-top">
@@ -358,7 +382,8 @@ const ServiceEvaluationView: React.FC<ServiceEvaluationViewProps> = ({ service, 
                 draft.serviceDay.individualScores[studentId] = {
                     attendance: true,
                     scores: Array(INDIVIDUAL_EVALUATION_ITEMS.length).fill(null),
-                    observations: ''
+                    observations: '',
+                    halveGroupScore: false,
                 };
             }
             

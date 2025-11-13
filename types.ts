@@ -81,6 +81,7 @@ export interface ServiceDayIndividualScores {
     attendance: boolean;
     scores: (number | null)[];
     observations: string;
+    halveGroupScore?: boolean;
 }
 
 export interface ServiceDayGroupScores {
@@ -282,6 +283,7 @@ export interface ResultadoAprendizaje {
   competencias: string[];
   criteriosEvaluacion: string[];
   area?: string;
+  ponderacion?: number;
 }
 
 export interface CriterioEvaluacion {
