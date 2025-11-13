@@ -1,6 +1,7 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useAppContext } from '../context/AppContext';
-import { InstrumentoEvaluacion, EvaluationActivity } from '../types';
+// FIX: Import AcademicGrades to resolve type error.
+import { InstrumentoEvaluacion, EvaluationActivity, Student, StudentAcademicGrades, StudentCalculatedGrades, AcademicGrades } from '../types';
 import { PencilIcon, SaveIcon, PlusIcon, TrashIcon, ChevronDownIcon, ChevronRightIcon, XIcon } from '../components/icons';
 
 interface InstrumentoFormModalProps {
@@ -13,7 +14,7 @@ interface InstrumentoFormModalProps {
 const InstrumentoFormModal: React.FC<InstrumentoFormModalProps> = ({ isOpen, onClose, onSave, initialData }) => {
     const [formData, setFormData] = useState(initialData);
 
-    useEffect(() => {
+    React.useEffect(() => {
         setFormData(initialData);
     }, [initialData]);
 
@@ -88,6 +89,92 @@ const ActivityRow: React.FC<{
     );
 };
 
+const getGradeForActivity = (
+    studentId: string,
+    activity: EvaluationActivity,
+    academicGrades: AcademicGrades,
+    calculatedGrades: Record<string, StudentCalculatedGrades>
+): number | null => {
+    const studentAcademic = academicGrades[studentId];
+    const studentCalculated = calculatedGrades[studentId];
+
+    switch (activity.id) {
+        // Examen Teórico
+        case 'act-1': // Examen 1 T1
+            return studentAcademic?.t1?.manualGrades?.examen1 ?? null;
+        case 'act-2': // Examen 2 T1
+            return studentAcademic?.t1?.manualGrades?.examen2 ?? null;
+        case 'act-8': // Examen 3 T2 (mapped to examen1 in T2)
+            return studentAcademic?.t2?.manualGrades?.examen1 ?? null;
+        case 'act-9': // Examen 4 T2 (mapped to examen2 in T2)
+            return studentAcademic?.t2?.manualGrades?.examen2 ?? null;
+        
+        // Servicios
+        case 'act-6': // Servicios T1
+            return studentCalculated?.serviceAverages?.t1 ?? null;
+        case 'act-13': // Servicios T2
+            return studentCalculated?.serviceAverages?.t2 ?? null;
+
+        // Examen Práctico
+        case 'act-7': // Ex. Practico T1
+            return studentCalculated?.practicalExams?.t1 ?? null;
+        case 'act-14': // Ex. Practico T2
+            return studentCalculated?.practicalExams?.t2 ?? null;
+            
+        // Otros (Fichas, Trabajos, Práctica Diaria) - Aún no tienen origen de datos
+        case 'act-3':
+        case 'act-10':
+        case 'act-4':
+        case 'act-11':
+        case 'act-5':
+        case 'act-12':
+        default:
+            return null;
+    }
+};
+
+const GradesMatrix: React.FC<{
+    instrument: InstrumentoEvaluacion;
+}> = ({ instrument }) => {
+    const { students, academicGrades, calculatedStudentGrades } = useAppContext();
+    const sortedStudents = useMemo(() => [...students].sort((a,b) => a.apellido1.localeCompare(b.apellido1)), [students]);
+
+    if(instrument.activities.length === 0) {
+        return <div className="text-center text-sm text-gray-500 py-4">Este instrumento no tiene actividades de evaluación definidas.</div>
+    }
+
+    return (
+        <div className="overflow-x-auto">
+            <table className="min-w-full text-xs">
+                <thead className="bg-gray-200">
+                    <tr>
+                        <th className="p-2 border font-semibold text-gray-600 w-48 text-left sticky left-0 bg-gray-200">Alumno</th>
+                        {instrument.activities.map(act => (
+                            <th key={act.id} className="p-2 border font-semibold text-gray-600">{act.name} ({act.trimester.toUpperCase()})</th>
+                        ))}
+                    </tr>
+                </thead>
+                <tbody>
+                    {sortedStudents.map(student => (
+                        <tr key={student.id} className="hover:bg-gray-100 group">
+                            <td className="p-2 border text-left font-medium text-gray-800 w-48 sticky left-0 bg-white group-hover:bg-gray-100">{`${student.apellido1} ${student.apellido2}, ${student.nombre}`}</td>
+                            {instrument.activities.map(act => {
+                                const grade = getGradeForActivity(student.id, act, academicGrades, calculatedStudentGrades);
+                                return (
+                                    <td key={act.id} className={`p-2 border text-center font-semibold ${grade !== null && grade < 5 ? 'text-red-600' : 'text-gray-800'}`}>
+                                        {grade !== null ? grade.toFixed(2) : '-'}
+                                    </td>
+                                );
+                            })}
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
+        </div>
+    );
+};
+
+
 const InstrumentosView: React.FC = () => {
     const { instrumentosEvaluacion, setInstrumentosEvaluacion, handleDeleteInstrumento, addToast } = useAppContext();
     const [expandedInstrument, setExpandedInstrument] = useState<string | null>(null);
@@ -104,50 +191,21 @@ const InstrumentosView: React.FC = () => {
         addToast(`Instrumento '${data.nombre}' guardado.`, 'success');
         handleCloseModal();
     };
-
+    
     const handleUpdateInstrument = (updatedInstrument: InstrumentoEvaluacion) => {
         setInstrumentosEvaluacion(prev => ({
             ...prev,
             [updatedInstrument.id]: updatedInstrument,
         }));
     };
-
-    const handleAddActivity = (instrumentId: string) => {
-        const instrument = instrumentosEvaluacion[instrumentId];
-        const newActivity: EvaluationActivity = {
-            id: `act-${Date.now()}`,
-            name: `Nueva Actividad ${instrument.activities.length + 1}`,
-            trimester: 't1'
-        };
-        const updatedInstrument = { ...instrument, activities: [...instrument.activities, newActivity] };
-        handleUpdateInstrument(updatedInstrument);
-    };
-    
-    const handleUpdateActivity = (instrumentId: string, updatedActivity: EvaluationActivity) => {
-        const instrument = instrumentosEvaluacion[instrumentId];
-        const updatedActivities = instrument.activities.map(act => act.id === updatedActivity.id ? updatedActivity : act);
-        const updatedInstrument = { ...instrument, activities: updatedActivities };
-        handleUpdateInstrument(updatedInstrument);
-    };
-
-    const handleDeleteActivity = (instrumentId: string, activityId: string) => {
-        if (window.confirm('¿Seguro que quieres eliminar esta actividad?')) {
-            const instrument = instrumentosEvaluacion[instrumentId];
-            const updatedActivities = instrument.activities.filter(act => act.id !== activityId);
-            const updatedInstrument = { ...instrument, activities: updatedActivities };
-            handleUpdateInstrument(updatedInstrument);
-        }
-    };
     
     const handleSaveAll = () => {
-        // FIX: The `reduce` method on `Object.values` was causing a type error where `inst` was inferred as `unknown`.
-        // Refactored to use `Object.keys` for better type safety with record objects.
         const totalPeso: number = Object.keys(instrumentosEvaluacion).reduce((sum, key) => sum + (instrumentosEvaluacion[key].pesoTotal || 0), 0);
         if (totalPeso > 100) {
             addToast(`El peso total no puede superar el 100% (actual: ${totalPeso}%)`, 'error');
             return;
         }
-        addToast('Ponderaciones y actividades guardadas con éxito.', 'success');
+        addToast('Ponderaciones guardadas con éxito.', 'success');
     };
 
     const totalPeso = useMemo(() => Object.values(instrumentosEvaluacion).reduce((sum: number, inst: InstrumentoEvaluacion) => sum + (inst.pesoTotal || 0), 0), [instrumentosEvaluacion]);
@@ -157,102 +215,74 @@ const InstrumentosView: React.FC = () => {
             <header className="flex justify-between items-center mb-8">
                 <div>
                     <h1 className="text-3xl font-bold text-gray-800 flex items-center"><PencilIcon className="w-8 h-8 mr-3 text-purple-500"/>Planificación y Ponderación</h1>
-                    <p className="text-gray-500 mt-1">Define el peso de cada instrumento y planifica las actividades de evaluación.</p>
+                    <p className="text-gray-500 mt-1">Define el peso de cada instrumento y visualiza las notas asociadas.</p>
                 </div>
                 <div className="flex items-center space-x-2">
                     <button onClick={() => handleOpenModal(null)} className="flex items-center bg-blue-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-blue-600 transition">
                         <PlusIcon className="w-5 h-5 mr-1" /> Nuevo Instrumento
                     </button>
                     <button onClick={handleSaveAll} className="flex items-center bg-green-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-green-600 transition">
-                        <SaveIcon className="w-5 h-5 mr-1" /> Guardar Todo
+                        <SaveIcon className="w-5 h-5 mr-1" /> Guardar Ponderaciones
                     </button>
                 </div>
             </header>
 
             <div className="bg-white rounded-lg shadow-sm overflow-hidden">
-                <div className="overflow-x-auto">
-                    <table className="min-w-full text-sm">
-                        <thead className="bg-gray-50">
-                            <tr>
-                                <th className="px-4 py-3 text-left font-semibold text-gray-600 w-1/3">Tipo de Instrumento</th>
-                                <th className="px-4 py-3 text-center font-semibold text-gray-600">Valor Total (%)</th>
-                                <th className="px-4 py-3 text-center font-semibold text-gray-600">Utilizados</th>
-                                <th className="px-4 py-3 text-center font-semibold text-gray-600">Ponderación Individual (%)</th>
-                                <th className="px-4 py-3 text-center font-semibold text-gray-600">Acciones</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {Object.values(instrumentosEvaluacion).map((inst: InstrumentoEvaluacion) => {
-                                const utilizados = inst.activities.length;
-                                const ponderacionIndividual = utilizados > 0 ? (inst.pesoTotal || 0) / utilizados : 0;
-                                const isExpanded = expandedInstrument === inst.id;
-
-                                return (
-                                    <React.Fragment key={inst.id}>
-                                        <tr className="border-t">
-                                            <td className="px-4 py-3 font-medium">
-                                                <button onClick={() => setExpandedInstrument(isExpanded ? null : inst.id)} className="flex items-center gap-2">
-                                                     {isExpanded ? <ChevronDownIcon className="w-4 h-4"/> : <ChevronRightIcon className="w-4 h-4"/>}
-                                                    {inst.nombre}
-                                                </button>
-                                            </td>
-                                            <td className="px-4 py-3">
-                                                <input 
-                                                    type="number" 
-                                                    value={inst.pesoTotal || ''}
-                                                    onChange={e => handleUpdateInstrument({ ...inst, pesoTotal: parseInt(e.target.value) || 0 })}
-                                                    className="w-24 mx-auto p-1.5 text-center bg-yellow-50 border rounded-md"
-                                                    min="0" max="100"
-                                                />
-                                            </td>
-                                            <td className="px-4 py-3 text-center font-medium">{utilizados}</td>
-                                            <td className="px-4 py-3 text-center font-medium">{ponderacionIndividual.toFixed(2)}%</td>
-                                            <td className="px-4 py-3 text-center">
-                                                <div className="flex justify-center items-center space-x-2">
-                                                    <button onClick={() => handleOpenModal(inst)} className="p-2 text-gray-500 hover:text-blue-600 hover:bg-gray-100 rounded-full"><PencilIcon className="w-4 h-4" /></button>
-                                                    {/* FIX: Corrected typo from handleDeleteInstrument to handleDeleteInstrumento */}
-                                                    <button onClick={() => handleDeleteInstrumento(inst.id)} className="p-2 text-gray-500 hover:text-red-600 hover:bg-gray-100 rounded-full"><TrashIcon className="w-4 h-4" /></button>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                        {isExpanded && (
-                                            <tr>
-                                                <td colSpan={5} className="p-4 bg-gray-100">
-                                                    <div className="space-y-3">
-                                                        <h4 className="font-semibold text-sm">Actividades Planificadas:</h4>
-                                                        {inst.activities.map(activity => (
-                                                            <ActivityRow 
-                                                                key={activity.id}
-                                                                activity={activity}
-                                                                onUpdate={(updated) => handleUpdateActivity(inst.id, updated)}
-                                                                onDelete={() => handleDeleteActivity(inst.id, activity.id)}
-                                                            />
-                                                        ))}
-                                                        <button onClick={() => handleAddActivity(inst.id)} className="w-full text-sm flex items-center justify-center gap-1 py-2 bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200">
-                                                            <PlusIcon className="w-4 h-4" /> Añadir Actividad
-                                                        </button>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        )}
-                                    </React.Fragment>
-                                );
-                            })}
-                        </tbody>
-                        <tfoot className="bg-gray-100 border-t-2">
-                            <tr>
-                                <td className="px-4 py-3 font-bold text-right">TOTAL</td>
-                                <td className={`px-4 py-3 text-center font-bold text-lg ${totalPeso > 100 ? 'text-red-600' : 'text-green-600'}`}>
-                                    {totalPeso}%
-                                </td>
-                                <td colSpan={3} className="px-4 py-3">
-                                    {totalPeso > 100 && <span className="text-xs text-red-600">¡El total supera el 100%!</span>}
-                                    {totalPeso < 100 && <span className="text-xs text-yellow-600">El total es inferior al 100%.</span>}
-                                </td>
-                            </tr>
-                        </tfoot>
-                    </table>
+                <table className="min-w-full text-sm">
+                    <thead className="bg-gray-50">
+                        <tr>
+                            <th className="px-4 py-3 text-left font-semibold text-gray-600 w-1/3">Tipo de Instrumento</th>
+                            <th className="px-4 py-3 text-center font-semibold text-gray-600">Valor Total (%)</th>
+                            <th className="px-4 py-3 text-center font-semibold text-gray-600">Nº Actividades</th>
+                            <th className="px-4 py-3 text-center font-semibold text-gray-600">Acciones</th>
+                        </tr>
+                    </thead>
+                </table>
+                <div className="space-y-1">
+                    {Object.values(instrumentosEvaluacion).map((inst: InstrumentoEvaluacion) => {
+                        const isExpanded = expandedInstrument === inst.id;
+                        return (
+                            <div key={inst.id} className="border-t">
+                                <div className="flex items-center">
+                                    <div className="w-1/3 px-4 py-3 font-medium">
+                                        <button onClick={() => setExpandedInstrument(isExpanded ? null : inst.id)} className="flex items-center gap-2 w-full text-left">
+                                            {isExpanded ? <ChevronDownIcon className="w-4 h-4"/> : <ChevronRightIcon className="w-4 h-4"/>}
+                                            {inst.nombre}
+                                        </button>
+                                    </div>
+                                    <div className="w-1/4 px-4 py-3">
+                                        <input 
+                                            type="number" 
+                                            value={inst.pesoTotal || ''}
+                                            onChange={e => handleUpdateInstrument({ ...inst, pesoTotal: parseInt(e.target.value) || 0 })}
+                                            className="w-24 mx-auto p-1.5 text-center bg-yellow-50 border rounded-md"
+                                            min="0" max="100"
+                                        />
+                                    </div>
+                                    <div className="w-1/4 px-4 py-3 text-center font-medium">{inst.activities.length}</div>
+                                    <div className="w-1/4 px-4 py-3 text-center">
+                                        <div className="flex justify-center items-center space-x-2">
+                                            <button onClick={() => handleOpenModal(inst)} className="p-2 text-gray-500 hover:text-blue-600 hover:bg-gray-100 rounded-full"><PencilIcon className="w-4 h-4" /></button>
+                                            <button onClick={() => handleDeleteInstrumento(inst.id)} className="p-2 text-gray-500 hover:text-red-600 hover:bg-gray-100 rounded-full"><TrashIcon className="w-4 h-4" /></button>
+                                        </div>
+                                    </div>
+                                </div>
+                                {isExpanded && (
+                                    <div className="p-4 bg-gray-50 border-t">
+                                        <h4 className="font-semibold text-md mb-2 text-gray-700">Desglose de Notas del Instrumento: {inst.nombre}</h4>
+                                        <GradesMatrix instrument={inst} />
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })}
                 </div>
+                 <div className="bg-gray-100 border-t-2 p-3 flex justify-end items-center font-bold">
+                    <span className="mr-4">TOTAL PONDERACIÓN</span>
+                    <span className={`text-lg ${totalPeso > 100 ? 'text-red-600' : totalPeso < 100 ? 'text-yellow-600' : 'text-green-600'}`}>
+                        {totalPeso}%
+                    </span>
+                 </div>
             </div>
             {modalState.isOpen && <InstrumentoFormModal isOpen={modalState.isOpen} onClose={handleCloseModal} onSave={handleSaveInstrument} initialData={modalState.data} />}
         </div>

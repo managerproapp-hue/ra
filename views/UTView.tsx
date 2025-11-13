@@ -19,8 +19,9 @@ const UTFormModal: React.FC<UTFormModalProps> = ({ isOpen, onClose, onSave, init
     if (!isOpen) return null;
 
     const allActivities = useMemo(() => {
+        if (!instrumentosEvaluacion) return [];
         // FIX: Explicitly type 'inst' to avoid 'unknown' type error.
-        return Object.values(instrumentosEvaluacion).flatMap((inst: InstrumentoEvaluacion) => inst.activities);
+        return Object.values(instrumentosEvaluacion).flatMap((inst: InstrumentoEvaluacion) => inst.activities || []);
     }, [instrumentosEvaluacion]);
 
     const handleToggleActivity = (raId: string, criterioId: string, activityId: string) => {
@@ -62,8 +63,10 @@ const UTFormModal: React.FC<UTFormModalProps> = ({ isOpen, onClose, onSave, init
     };
     
     const availableCriterios = useMemo(() => {
-        if (!selectedRA) return [];
-        return resultadosAprendizaje[selectedRA]?.criteriosEvaluacion.map(id => criteriosEvaluacion[id]).filter(Boolean) || [];
+        if (!selectedRA || !resultadosAprendizaje || !criteriosEvaluacion) return [];
+        const ra = resultadosAprendizaje[selectedRA];
+        if (!ra || !ra.criteriosEvaluacion) return [];
+        return ra.criteriosEvaluacion.map(id => criteriosEvaluacion[id]).filter(Boolean);
     }, [selectedRA, resultadosAprendizaje, criteriosEvaluacion]);
 
     return (
@@ -90,7 +93,7 @@ const UTFormModal: React.FC<UTFormModalProps> = ({ isOpen, onClose, onSave, init
                                     <label className="text-xs font-medium">1. Seleccionar RA</label>
                                     <select value={selectedRA} onChange={e => { setSelectedRA(e.target.value); setSelectedCriterio(''); }} className="w-full p-2 border rounded-md bg-white">
                                         <option value="">-- Elige un RA --</option>
-                                        {Object.values(resultadosAprendizaje).map((ra: ResultadoAprendizaje) => <option key={ra.id} value={ra.id}>{ra.nombre}</option>)}
+                                        {Object.values(resultadosAprendizaje || {}).map((ra: ResultadoAprendizaje) => <option key={ra.id} value={ra.id}>{ra.nombre}</option>)}
                                     </select>
                                 </div>
                                 <div className="flex-1">
@@ -108,8 +111,8 @@ const UTFormModal: React.FC<UTFormModalProps> = ({ isOpen, onClose, onSave, init
                                 <div key={index} className="p-3 bg-gray-100 rounded">
                                     <div className="flex justify-between items-start">
                                         <div>
-                                            <p className="font-semibold text-sm">{resultadosAprendizaje[asoc.raId]?.nombre || 'RA no encontrado'}</p>
-                                            <p className="text-xs text-gray-600">{criteriosEvaluacion[asoc.criterioId]?.descripcion || 'Criterio no encontrado'}</p>
+                                            <p className="font-semibold text-sm">{resultadosAprendizaje?.[asoc.raId]?.nombre || 'RA no encontrado'}</p>
+                                            <p className="text-xs text-gray-600">{criteriosEvaluacion?.[asoc.criterioId]?.descripcion || 'Criterio no encontrado'}</p>
                                         </div>
                                         <button type="button" onClick={() => handleRemoveAsociacion(index)} className="p-1 text-red-500 hover:text-red-700"><TrashIcon className="w-4 h-4"/></button>
                                     </div>
@@ -148,8 +151,9 @@ const UTView: React.FC = () => {
     const [modalState, setModalState] = useState<{ isOpen: boolean; data: UnidadTrabajo | null }>({ isOpen: false, data: null });
 
     const allActivities = useMemo(() => {
+        if (!instrumentosEvaluacion) return [];
         // FIX: Explicitly type 'inst' to avoid 'unknown' type error.
-        return Object.values(instrumentosEvaluacion).flatMap((inst: InstrumentoEvaluacion) => inst.activities);
+        return Object.values(instrumentosEvaluacion).flatMap((inst: InstrumentoEvaluacion) => inst.activities || []);
     }, [instrumentosEvaluacion]);
 
     const getActivityNameById = (id: string) => allActivities.find(act => act.id === id)?.name || 'Actividad no encontrada';
@@ -187,7 +191,7 @@ const UTView: React.FC = () => {
                 <button onClick={() => handleOpenModal(null)} className="flex items-center bg-green-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-green-600 transition"><PlusIcon className="w-5 h-5 mr-1" /> Nueva UT</button>
             </header>
             <div className="space-y-4">
-                {Object.values(unidadesTrabajo).map((ut: UnidadTrabajo) => (
+                {Object.values(unidadesTrabajo || {}).map((ut: UnidadTrabajo) => (
                     <div key={ut.id} className="bg-white rounded-lg shadow-sm p-4">
                         <div className="flex justify-between items-start">
                             <div>
@@ -202,17 +206,17 @@ const UTView: React.FC = () => {
                         <div className="mt-3 pt-3 border-t">
                             <h4 className="text-xs font-bold text-gray-500 uppercase mb-2">Asociaciones</h4>
                             <div className="space-y-2">
-                                {ut.asociaciones.map((asoc, index) => (
+                                {(ut.asociaciones || []).map((asoc, index) => (
                                     <div key={index} className="text-xs bg-gray-100 p-2 rounded">
-                                        <p><span className="font-semibold">{resultadosAprendizaje[asoc.raId]?.nombre || 'RA no encontrado'}:</span> {criteriosEvaluacion[asoc.criterioId]?.descripcion || 'Criterio no encontrado'}</p>
+                                        <p><span className="font-semibold">{resultadosAprendizaje?.[asoc.raId]?.nombre || 'RA no encontrado'}:</span> {criteriosEvaluacion?.[asoc.criterioId]?.descripcion || 'Criterio no encontrado'}</p>
                                         <div className="flex flex-wrap gap-1 mt-1">
-                                            {asoc.activityIds.map(actId => (
+                                            {(asoc.activityIds || []).map(actId => (
                                                 <span key={actId} className="bg-blue-200 text-blue-800 px-1.5 py-0.5 rounded-full text-[10px] font-medium">{getActivityNameById(actId)}</span>
                                             ))}
                                         </div>
                                     </div>
                                 ))}
-                                {ut.asociaciones.length === 0 && <p className="text-xs text-gray-500">Sin asociaciones.</p>}
+                                {(!ut.asociaciones || ut.asociaciones.length === 0) && <p className="text-xs text-gray-500">Sin asociaciones.</p>}
                             </div>
                         </div>
                     </div>
