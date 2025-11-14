@@ -5,6 +5,7 @@ export const resultadosAprendizaje: Record<string, ResultadoAprendizaje> = {
     id: 'cocina_basica',
     nombre: 'Cocina Básica',
     descripcion: 'Desarrolla habilidades básicas de cocina y manipulación de alimentos',
+    ponderacion: 100,
     competencias: [
       'Aplicar técnicas básicas de cocina',
       'Manejar utensilios y equipos de cocina',
@@ -19,6 +20,7 @@ export const resultadosAprendizaje: Record<string, ResultadoAprendizaje> = {
     id: 'cocina_mediterranea',
     nombre: 'Cocina Mediterránea',
     descripcion: 'Domina los fundamentos de la cocina mediterránea tradicional',
+    ponderacion: 100,
     competencias: [
       'Preparar platos típicos mediterráneos',
       'Conocer ingredientes y productos locales',
@@ -33,6 +35,7 @@ export const resultadosAprendizaje: Record<string, ResultadoAprendizaje> = {
     id: 'panaderia_pasteleria',
     nombre: 'Panadería y Pastelería',
     descripcion: 'Especialización en productos de panadería y repostería',
+    ponderacion: 100,
     competencias: [
       'Elaborar masas y panes artesanales',
       'Preparar postres y repostería fina',

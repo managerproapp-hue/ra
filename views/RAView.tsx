@@ -392,7 +392,9 @@ const RAView: React.FC = () => {
                         const criterio = criteriosEvaluacion[critId];
                         return sum + (criterio?.ponderacion || 0);
                     }, 0);
-                    const ponderacionColor = ponderacionTotalCriterios === 100 ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800';
+                    const ponderacionRAAsignada = ra.ponderacion ?? 0;
+                    const ponderacionesCoinciden = ponderacionRAAsignada === ponderacionTotalCriterios;
+                    const ponderacionColor = ponderacionesCoinciden ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800';
 
                     return (
                         <div key={ra.id} className="bg-white rounded-lg shadow-sm">
@@ -403,7 +405,10 @@ const RAView: React.FC = () => {
                                         <h3 className="font-bold">{ra.nombre}</h3>
                                         <GradeBadge grade={averageGrades.raAverages.get(ra.id)} />
                                         <span className={`px-2 py-0.5 text-xs font-semibold rounded-full ${ponderacionColor}`}>
-                                            Σ Pond: {ponderacionTotalCriterios}%
+                                            RA: {ponderacionRAAsignada}%
+                                        </span>
+                                        <span className={`px-2 py-0.5 text-xs font-semibold rounded-full ${ponderacionColor}`}>
+                                            Σ Criterios: {ponderacionTotalCriterios}%
                                         </span>
                                     </div>
                                     <p className="text-sm text-gray-500 mt-1">{ra.descripcion}</p>
