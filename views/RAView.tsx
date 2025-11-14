@@ -13,9 +13,7 @@ interface FormModalProps {
 }
 
 const FormModal: React.FC<FormModalProps> = ({ isOpen, onClose, onSave, initialData, type }) => {
-    const [formData, setFormData] = useState(initialData);
-
-    useEffect(() => {
+    const [formData, setFormData] = useState(() => {
         const dataForForm = { ...initialData };
         if (type === 'ra') {
             dataForForm.competencias = (initialData.competencias || []).join(', ');
@@ -23,8 +21,8 @@ const FormModal: React.FC<FormModalProps> = ({ isOpen, onClose, onSave, initialD
         if (type === 'criterio') {
             dataForForm.indicadores = (initialData.indicadores || []).join(', ');
         }
-        setFormData(dataForForm);
-    }, [initialData, type]);
+        return dataForForm;
+    });
 
     if (!isOpen) return null;
 
@@ -36,11 +34,11 @@ const FormModal: React.FC<FormModalProps> = ({ isOpen, onClose, onSave, initialD
         e.preventDefault();
         const dataToSave = { ...formData };
         if (type === 'ra') {
-            dataToSave.competencias = formData.competencias.split(',').map((s: string) => s.trim()).filter(Boolean);
+            dataToSave.competencias = (formData.competencias || '').split(',').map((s: string) => s.trim()).filter(Boolean);
             dataToSave.ponderacion = parseInt(String(formData.ponderacion), 10) || 0;
         }
         if (type === 'criterio') {
-            dataToSave.indicadores = formData.indicadores.split(',').map((s: string) => s.trim()).filter(Boolean);
+            dataToSave.indicadores = (formData.indicadores || '').split(',').map((s: string) => s.trim()).filter(Boolean);
             dataToSave.ponderacion = parseInt(String(formData.ponderacion), 10) || 0;
         }
         onSave(dataToSave);
