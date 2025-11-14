@@ -1,6 +1,6 @@
 import React, { useState, useRef, useMemo, useEffect } from 'react';
-import { Student, EntryExitRecord, StudentCalculatedGrades, StudentAcademicGrades, StudentCourseGrades, GradeValue, CourseModuleGrades, ServiceEvaluation, Service, TimelineEvent, PreServiceDayEvaluation } from '../types';
-import { ACADEMIC_EVALUATION_STRUCTURE, COURSE_MODULES } from '../data/constants';
+// FIX: Add ResultadoAprendizaje to imports
+import { Student, EntryExitRecord, ServiceEvaluation, Service, TimelineEvent, PreServiceDayEvaluation, ResultadoAprendizaje } from '../types';
 import { 
     PencilIcon,
     CameraIcon,
@@ -9,20 +9,17 @@ import {
     MessageCircleIcon,
     TrendingUpIcon,
     PrinterIcon,
-    PlusIcon
+    ChevronDownIcon,
+    ChevronRightIcon
 } from '../components/icons';
-import { calculateStudentPeriodAverages } from '../services/gradeCalculator';
-import GradeTrendChart from '../components/GradeTrendChart';
 import { useAppContext } from '../context/AppContext';
 import { generateStudentFilePDF } from '../services/reportGenerator';
+import { calculateRAGrade, calculateCriterioGrade } from '../services/academicAnalytics';
 
 interface FichaAlumnoProps {
   student: Student;
   onBack: () => void;
   entryExitRecords: EntryExitRecord[];
-  calculatedGrades: StudentCalculatedGrades;
-  academicGrades?: StudentAcademicGrades;
-  courseGrades?: StudentCourseGrades;
   serviceEvaluations: ServiceEvaluation[];
   services: Service[];
   onUpdatePhoto: (studentId: string, photoUrl: string) => void;
@@ -35,18 +32,6 @@ const InfoRow: React.FC<{ label: string; value: React.ReactNode; isEditing?: boo
         <dd className="mt-1 text-sm text-gray-900 sm:mt-0 col-span-2">{isEditing ? children : (value || '-')}</dd>
     </div>
 );
-
-const calculateSimpleAverage = (grades: Partial<CourseModuleGrades>): string => {
-    if (!grades) return '-';
-    const validGrades = ([grades.t1, grades.t2] as (GradeValue | undefined)[])
-        .map(g => parseFloat(String(g)))
-        .filter(g => !isNaN(g) && g >= 5);
-      
-    if (validGrades.length === 0) return '-';
-      
-    const sum = validGrades.reduce((acc, curr) => acc + curr, 0);
-    return (sum / validGrades.length).toFixed(2);
-};
 
 const Tab: React.FC<{ label: string; isActive: boolean; onClick: () => void; }> = ({ label, isActive, onClick }) => (
     <button
@@ -62,11 +47,21 @@ const Tab: React.FC<{ label: string; isActive: boolean; onClick: () => void; }> 
 );
 
 
-const FichaAlumno: React.FC<FichaAlumnoProps> = ({ student, onBack, entryExitRecords, calculatedGrades, academicGrades, courseGrades, serviceEvaluations, services, onUpdatePhoto, onUpdateStudent }) => {
-  const { teacherData, instituteData } = useAppContext();
+const FichaAlumno: React.FC<FichaAlumnoProps> = ({ student, onBack, entryExitRecords, serviceEvaluations, services, onUpdatePhoto, onUpdateStudent }) => {
+  const { 
+    teacherData, 
+    instituteData,
+    resultadosAprendizaje, 
+    criteriosEvaluacion, 
+    academicGrades: allAcademicGrades,
+    calculatedStudentGrades: allCalculatedGrades,
+    courseGrades: allCourseGrades,
+  } = useAppContext();
+
   const [isEditing, setIsEditing] = useState(false);
   const [editedStudent, setEditedStudent] = useState<Student>(student);
   const [activeTab, setActiveTab] = useState('general');
+  const [expandedRAs, setExpandedRAs] = useState<Set<string>>(new Set());
 
   const fullName = `${student.apellido1} ${student.apellido2}, ${student.nombre}`.trim();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -99,7 +94,7 @@ const FichaAlumno: React.FC<FichaAlumnoProps> = ({ student, onBack, entryExitRec
     setIsEditing(false);
   };
 
-  const timelineEvents = useMemo(() => {
+    const timelineEvents = useMemo(() => {
     const events: TimelineEvent[] = [];
     const parseDate = (dateStr: string) => {
         const [day, month, year] = dateStr.split('/');
@@ -135,14 +130,38 @@ const FichaAlumno: React.FC<FichaAlumnoProps> = ({ student, onBack, entryExitRec
     return events.sort((a, b) => b.date.getTime() - a.date.getTime());
   }, [entryExitRecords, serviceEvaluations, services, student.id]);
 
-  const finalAverages = useMemo(() => calculateStudentPeriodAverages(academicGrades, calculatedGrades), [academicGrades, calculatedGrades]);
+  const raProgress = useMemo(() => {
+    // FIX: Cast Object.values to the correct type to resolve type inference issues.
+    return (Object.values(resultadosAprendizaje) as ResultadoAprendizaje[]).map(ra => {
+        const { grade } = calculateRAGrade(
+            ra, 
+            student.id, 
+            criteriosEvaluacion,
+            allAcademicGrades,
+            allCalculatedGrades
+        );
+        return { ...ra, grade };
+    }).sort((a, b) => a.nombre.localeCompare(b.nombre));
+  }, [student.id, resultadosAprendizaje, criteriosEvaluacion, allAcademicGrades, allCalculatedGrades]);
+
+  const toggleRA = (raId: string) => {
+    setExpandedRAs(prev => {
+        const newSet = new Set(prev);
+        if (newSet.has(raId)) {
+            newSet.delete(raId);
+        } else {
+            newSet.add(raId);
+        }
+        return newSet;
+    });
+  };
 
   const handlePrint = () => {
       generateStudentFilePDF(
           student,
-          calculatedGrades,
-          academicGrades,
-          courseGrades,
+          allCalculatedGrades[student.id],
+          allAcademicGrades[student.id],
+          allCourseGrades[student.id],
           timelineEvents,
           teacherData,
           instituteData
@@ -204,8 +223,31 @@ const FichaAlumno: React.FC<FichaAlumnoProps> = ({ student, onBack, entryExitRec
                 {/* Main Panel */}
                 <div className="w-full xl:col-span-2 space-y-8">
                     <div className="bg-white shadow-md rounded-lg p-4">
-                        <h3 className="text-lg font-bold text-gray-800 mb-2 flex items-center"><TrendingUpIcon className="w-5 h-5 mr-2 text-blue-500"/> Progresión Académica (Módulo Principal)</h3>
-                        <GradeTrendChart trimesterAverages={{ t1: finalAverages.t1, t2: finalAverages.t2 }} />
+                        <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center">
+                            <TrendingUpIcon className="w-5 h-5 mr-2 text-blue-500"/> Progresión por Competencias (RA)
+                        </h3>
+                        <div className="space-y-4">
+                            {raProgress.map(ra => {
+                                const percentage = ra.grade !== null ? (ra.grade / 10) * 100 : 0;
+                                const barColor = ra.grade === null ? 'bg-gray-200' : ra.grade < 5 ? 'bg-red-400' : ra.grade < 7 ? 'bg-yellow-400' : 'bg-green-400';
+                                return (
+                                    <div key={ra.id}>
+                                        <div className="flex justify-between items-center mb-1">
+                                            <span className="text-sm font-medium text-gray-700">{ra.nombre}</span>
+                                            <span className={`text-sm font-bold ${ra.grade === null ? 'text-gray-500' : ra.grade < 5 ? 'text-red-600' : 'text-gray-800'}`}>
+                                                {ra.grade?.toFixed(2) ?? 'N/E'}
+                                            </span>
+                                        </div>
+                                        <div className="w-full bg-gray-200 rounded-full h-2.5">
+                                            <div 
+                                                className={`h-2.5 rounded-full ${barColor}`} 
+                                                style={{ width: `${percentage}%` }}
+                                            ></div>
+                                        </div>
+                                    </div>
+                                )
+                            })}
+                        </div>
                     </div>
                     <div className="bg-white shadow-md rounded-lg overflow-hidden">
                         <div className="p-4 border-b"><h3 className="text-lg font-bold text-gray-800">Datos Personales</h3></div>
@@ -223,10 +265,6 @@ const FichaAlumno: React.FC<FichaAlumnoProps> = ({ student, onBack, entryExitRec
                 <div className="w-full xl:col-span-1 space-y-6">
                     <div className="bg-white shadow-md rounded-lg p-4 sticky top-4">
                         <h3 className="text-lg font-bold text-gray-800 mb-4">Historial y Anotaciones</h3>
-                        <div className="space-y-2 mb-4">
-                            <textarea rows={3} placeholder="Añadir una nueva anotación o resumen de tutoría..." className="w-full p-2 border rounded-md text-sm bg-gray-50"></textarea>
-                            <button className="w-full bg-blue-500 text-white font-semibold py-2 rounded-md hover:bg-blue-600 text-sm">Guardar Anotación</button>
-                        </div>
                         <div className="relative max-h-96 overflow-y-auto pr-2">
                             {timelineEvents.length > 0 ? timelineEvents.map((event, index) => (
                                 <div key={index} className="flex gap-4 pb-6">
@@ -248,76 +286,71 @@ const FichaAlumno: React.FC<FichaAlumnoProps> = ({ student, onBack, entryExitRec
         )}
         
         {activeTab === 'academico' && (
-            <div className="space-y-8">
-                <div className="bg-white shadow-md rounded-lg overflow-hidden">
-                    <h3 className="text-lg font-bold text-gray-800 p-4 border-b">Desglose de Calificaciones (Módulo Principal)</h3>
-                    <div className="overflow-x-auto">
-                        <table className="min-w-full text-sm text-center">
-                            <thead className="bg-gray-50 text-xs text-gray-600 uppercase">
-                                <tr>
-                                    <th className="px-4 py-3 text-left">Instrumento</th>
-                                    {ACADEMIC_EVALUATION_STRUCTURE.periods.map(p => <th key={p.key} className="px-4 py-3">{p.name}</th>)}
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-200">
-                                {ACADEMIC_EVALUATION_STRUCTURE.periods[0].instruments.map(instrument => (
-                                    <tr key={instrument.key}>
-                                        <td className="px-4 py-2 text-left font-medium">{instrument.name} ({instrument.weight * 100}%)</td>
-                                        {ACADEMIC_EVALUATION_STRUCTURE.periods.map(period => {
-                                            let grade: GradeValue | undefined = null;
-                                            if (instrument.type === 'manual') grade = academicGrades?.[period.key]?.manualGrades?.[instrument.key];
-                                            else if (instrument.key === 'servicios') grade = calculatedGrades?.serviceAverages?.[period.key as 't1'|'t2'];
-                                            else {
-                                                const examKey = (period.key + (instrument.key.includes('Rec') ? 'Rec' : '')) as keyof typeof calculatedGrades.practicalExams;
-                                                grade = calculatedGrades?.practicalExams?.[examKey];
-                                            }
-                                            return <td key={`${period.key}-${instrument.key}`} className="px-4 py-2">{grade?.toFixed(2) ?? '-'}</td>
-                                        })}
-                                    </tr>
-                                ))}
-                            </tbody>
-                            <tfoot className="bg-gray-100 font-bold">
-                                 <tr>
-                                    <td className="px-4 py-2 text-left">MEDIA PONDERADA</td>
-                                    {ACADEMIC_EVALUATION_STRUCTURE.periods.map(p => (
-                                        <td key={`avg-${p.key}`} className="px-4 py-2">{finalAverages[p.key as keyof typeof finalAverages]?.toFixed(2) ?? '-'}</td>
-                                    ))}
-                                </tr>
-                            </tfoot>
-                        </table>
-                    </div>
-                </div>
+            <div className="space-y-4">
+                {raProgress.map(ra => {
+                    const isExpanded = expandedRAs.has(ra.id);
+                    const { grade, ponderacionTotal } = calculateRAGrade(
+                        ra, 
+                        student.id, 
+                        criteriosEvaluacion,
+                        allAcademicGrades,
+                        allCalculatedGrades
+                    );
+                    
+                    return (
+                        <div key={ra.id} className="bg-white shadow-sm rounded-lg overflow-hidden">
+                            <div 
+                                className="flex items-center p-4 cursor-pointer hover:bg-gray-50"
+                                onClick={() => toggleRA(ra.id)}
+                            >
+                                {isExpanded ? <ChevronDownIcon className="w-5 h-5 mr-3"/> : <ChevronRightIcon className="w-5 h-5 mr-3"/>}
+                                <div className="flex-1">
+                                    <h4 className="font-bold text-gray-800">{ra.nombre}</h4>
+                                    <p className="text-xs text-gray-500">Ponderación de criterios evaluados: {ponderacionTotal}%</p>
+                                </div>
+                                <div className="text-right">
+                                    <p className="text-sm font-medium text-gray-500">Nota RA</p>
+                                    <p className={`text-2xl font-bold ${grade === null ? 'text-gray-400' : grade < 5 ? 'text-red-600' : 'text-green-600'}`}>
+                                        {grade?.toFixed(2) ?? 'N/E'}
+                                    </p>
+                                </div>
+                            </div>
 
-                <div className="bg-white shadow-md rounded-lg overflow-hidden">
-                    <h3 className="text-lg font-bold text-gray-800 p-4 border-b">Calificaciones de Otros Módulos</h3>
-                    <div className="overflow-x-auto">
-                       <table className="min-w-full text-sm text-center">
-                            <thead className="bg-gray-50 text-xs text-gray-600 uppercase">
-                                <tr>
-                                    <th className="px-4 py-3 text-left">Módulo</th>
-                                    <th className="px-4 py-3">T1</th>
-                                    <th className="px-4 py-3">T2</th>
-                                    <th className="px-4 py-3">REC</th>
-                                    <th className="px-4 py-3">Media Final</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-200">
-                                {COURSE_MODULES.map(mod => {
-                                    const grades = courseGrades?.[mod] || {};
-                                    return (
-                                        <tr key={mod}>
-                                            <td className="px-4 py-2 text-left font-medium">{mod}</td>
-                                            <td>{grades?.t1 ?? '-'}</td>
-                                            <td>{grades?.t2 ?? '-'}</td>
-                                            <td>{grades?.rec ?? '-'}</td>
-                                            <td className="font-bold bg-gray-50">{calculateSimpleAverage(grades)}</td>
-                                        </tr>
-                                    )
-                                })}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
+                            {isExpanded && (
+                                <div className="border-t bg-gray-50 p-4">
+                                    <h5 className="text-sm font-semibold text-gray-600 mb-2">Desglose de Criterios de Evaluación</h5>
+                                    <div className="space-y-2">
+                                        {ra.criteriosEvaluacion.map(criterioId => {
+                                            const criterio = criteriosEvaluacion[criterioId];
+                                            if (!criterio) return null;
+                                            
+                                            const criterioGrade = calculateCriterioGrade(
+                                                criterio,
+                                                student.id,
+                                                allAcademicGrades,
+                                                allCalculatedGrades
+                                            );
+
+                                            return (
+                                                <div key={criterio.id} className="flex items-center justify-between p-2 bg-white rounded-md border">
+                                                    <div className="flex-1 pr-4">
+                                                        <p className="text-sm text-gray-800">{criterio.descripcion}</p>
+                                                    </div>
+                                                    <div className="text-right flex-shrink-0">
+                                                        <p className="text-xs text-gray-500">Pond: {criterio.ponderacion}%</p>
+                                                        <p className={`font-bold ${criterioGrade === null ? 'text-gray-400' : criterioGrade < 5 ? 'text-red-500' : 'text-gray-800'}`}>
+                                                            {criterioGrade?.toFixed(2) ?? 'N/E'}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    )
+                })}
             </div>
         )}
     </div>
