@@ -66,6 +66,10 @@ const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
                 <p className="text-sm text-gray-400 mt-6">
                     ¿Necesitas restaurar datos? Ve a <button onClick={() => onNavigate('gestion-app')} className="text-blue-500 hover:underline font-semibold">Gestión App</button> para usar una copia de seguridad.
                 </p>
+                <footer className="mt-12 text-center text-sm text-gray-500">
+                    <p>Desarrollado por Juan Codina Barranco</p>
+                    <p><a href="mailto:juan.codina@murciaeduca.es" className="hover:underline">juan.codina@murciaeduca.es</a></p>
+                </footer>
             </div>
         )
     }
@@ -100,6 +104,10 @@ const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
                     </div>
                 </div>
             </div>
+            <footer className="mt-12 text-center text-sm text-gray-500">
+                <p>Desarrollado por Juan Codina Barranco</p>
+                <p><a href="mailto:juan.codina@murciaeduca.es" className="hover:underline">juan.codina@murciaeduca.es</a></p>
+            </footer>
         </div>
     );
 };
