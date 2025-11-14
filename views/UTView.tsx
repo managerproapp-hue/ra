@@ -46,6 +46,57 @@ const UTFormModal: React.FC<UTFormModalProps> = ({ isOpen, onClose, onSave, init
     );
 };
 
+const AsociacionesSummary: React.FC<{ 
+    ut: UnidadTrabajo;
+    criteriosEvaluacion: Record<string, CriterioEvaluacion>;
+    resultadosAprendizaje: Record<string, ResultadoAprendizaje>;
+}> = ({ ut, criteriosEvaluacion, resultadosAprendizaje }) => {
+    const CriteriosAsociadosPorRA = useMemo(() => {
+        const grouped: Record<string, { ra: ResultadoAprendizaje; criterios: CriterioEvaluacion[] }> = {};
+        // FIX: Explicitly cast Object.values to resolve type errors on properties like 'asociaciones' and 'raId'.
+        const allCriterios = Object.values(criteriosEvaluacion) as CriterioEvaluacion[];
+
+        const criteriaForThisUT = allCriterios.filter((c) => 
+            (c.asociaciones || []).some(a => a.utId === ut.id)
+        );
+        
+        criteriaForThisUT.forEach(crit => {
+            const raId = crit.raId;
+            if (!raId) return;
+
+            if (!grouped[raId]) {
+                const ra = resultadosAprendizaje[raId];
+                if (ra) {
+                    grouped[raId] = { ra, criterios: [] };
+                }
+            }
+            if (grouped[raId]) {
+                grouped[raId].criterios.push(crit);
+            }
+        });
+
+        return Object.values(grouped);
+    }, [ut.id, resultadosAprendizaje, criteriosEvaluacion]);
+
+    if (CriteriosAsociadosPorRA.length === 0) {
+        return <p className="text-xs text-gray-500">Esta UT no está asociada a ningún criterio de evaluación.</p>;
+    }
+
+    return (
+        <div className="space-y-2">
+            {CriteriosAsociadosPorRA.map(({ ra, criterios }) => (
+                <div key={ra.id} className="text-xs bg-gray-100 p-2 rounded">
+                    <p className="font-semibold">{ra.nombre}</p>
+                    <ul className="list-disc list-inside pl-2 mt-1 space-y-1">
+                        {criterios.map(c => <li key={c.id} className="text-gray-700">{c.descripcion}</li>)}
+                    </ul>
+                </div>
+            ))}
+        </div>
+    );
+};
+
+
 const UTView: React.FC = () => {
     const { unidadesTrabajo, resultadosAprendizaje, criteriosEvaluacion, handleSaveUT, handleDeleteUT } = useAppContext();
     const [modalState, setModalState] = useState<{ isOpen: boolean; data: UnidadTrabajo | null }>({ isOpen: false, data: null });
@@ -67,51 +118,6 @@ const UTView: React.FC = () => {
             }
             return newSet;
         });
-    };
-
-    const AsociacionesSummary: React.FC<{ ut: UnidadTrabajo }> = ({ ut }) => {
-        const CriteriosAsociadosPorRA = useMemo(() => {
-            const grouped: Record<string, { ra: ResultadoAprendizaje; criterios: CriterioEvaluacion[] }> = {};
-            const allCriterios = Object.values(criteriosEvaluacion) as CriterioEvaluacion[];
-
-            const criteriaForThisUT = allCriterios.filter((c) => 
-                (c.asociaciones || []).some(a => a.utId === ut.id)
-            );
-            
-            criteriaForThisUT.forEach(crit => {
-                const raId = crit.raId;
-                if (!raId) return;
-
-                if (!grouped[raId]) {
-                    const ra = resultadosAprendizaje[raId];
-                    if (ra) {
-                        grouped[raId] = { ra, criterios: [] };
-                    }
-                }
-                if (grouped[raId]) {
-                    grouped[raId].criterios.push(crit);
-                }
-            });
-
-            return Object.values(grouped);
-        }, [ut.id, resultadosAprendizaje, criteriosEvaluacion]);
-
-        if (CriteriosAsociadosPorRA.length === 0) {
-            return <p className="text-xs text-gray-500">Esta UT no está asociada a ningún criterio de evaluación.</p>;
-        }
-
-        return (
-            <div className="space-y-2">
-                {CriteriosAsociadosPorRA.map(({ ra, criterios }) => (
-                    <div key={ra.id} className="text-xs bg-gray-100 p-2 rounded">
-                        <p className="font-semibold">{ra.nombre}</p>
-                        <ul className="list-disc list-inside pl-2 mt-1 space-y-1">
-                            {criterios.map(c => <li key={c.id} className="text-gray-700">{c.descripcion}</li>)}
-                        </ul>
-                    </div>
-                ))}
-            </div>
-        );
     };
 
     return (
@@ -144,7 +150,11 @@ const UTView: React.FC = () => {
                             {isExpanded && (
                                 <div className="mt-3 pt-3 border-t p-4">
                                     <h4 className="text-xs font-bold text-gray-500 uppercase mb-2">Resumen de Criterios Asociados (Solo Lectura)</h4>
-                                    <AsociacionesSummary ut={ut} />
+                                    <AsociacionesSummary 
+                                        ut={ut} 
+                                        criteriosEvaluacion={criteriosEvaluacion} 
+                                        resultadosAprendizaje={resultadosAprendizaje} 
+                                    />
                                 </div>
                             )}
                         </div>

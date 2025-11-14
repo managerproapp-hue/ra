@@ -2,7 +2,9 @@ import React, { createContext, useContext, useState, useEffect, useMemo } from '
 import { 
     Student, PracticeGroup, Service, ServiceEvaluation, ServiceRole, EntryExitRecord, 
     AcademicGrades, CourseGrades, PracticalExamEvaluation, TeacherData, InstituteData, Toast, ToastType, StudentCalculatedGrades, TrimesterDates,
-    ResultadoAprendizaje, CriterioEvaluacion, InstrumentoEvaluacion, Profesor, UnidadTrabajo
+    ResultadoAprendizaje, CriterioEvaluacion, InstrumentoEvaluacion, Profesor, UnidadTrabajo,
+    // FIX: Import missing type 'AsociacionCriterio'
+    AsociacionCriterio
 } from '../types';
 import { parseFile } from '../services/csvParser';
 import { SERVICE_GRADE_WEIGHTS } from '../data/constants';
@@ -338,8 +340,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
     
     const onDeleteRole = (roleId: string) => {
+        setServices(prevServices => 
+            prevServices.map(service => ({
+                ...service,
+                studentRoles: service.studentRoles.filter(sr => sr.roleId !== roleId)
+            }))
+        );
         setServiceRoles(prev => prev.filter(r => r.id !== roleId));
-        addToast('Rol de servicio eliminado.', 'info');
+        addToast('Rol de servicio y sus asignaciones han sido eliminados.', 'info');
     };
     
     const handleDeleteInstrumento = (instrumentoId: string) => {
@@ -355,14 +363,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             });
             
             setCriteriosEvaluacion(prev => {
-                const newState = { ...prev };
+                const newState = JSON.parse(JSON.stringify(prev));
                 Object.keys(newState).forEach(critId => {
                     const criterio = newState[critId];
                     if (criterio.asociaciones) {
-                        criterio.asociaciones.forEach(asoc => {
+                        criterio.asociaciones.forEach((asoc: AsociacionCriterio) => {
                             asoc.activityIds = (asoc.activityIds || []).filter(id => !activityIdsToDelete.has(id));
                         });
-                        criterio.asociaciones = criterio.asociaciones.filter(asoc => asoc.activityIds.length > 0);
+                        // Remove associations that are now empty
+                        criterio.asociaciones = criterio.asociaciones.filter((asoc: AsociacionCriterio) => asoc.activityIds.length > 0);
                     }
                 });
                 return newState;
