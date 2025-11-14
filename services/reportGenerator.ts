@@ -641,3 +641,91 @@ export const generateFullPlanningPDF = (
 
     doc.save(`Planificacion_Academica_Completa.pdf`);
 };
+
+export const generateRAPlanningPDF = (
+    resultadosAprendizaje: Record<string, ResultadoAprendizaje>,
+    criteriosEvaluacion: Record<string, CriterioEvaluacion>,
+    unidadesTrabajo: Record<string, UnidadTrabajo>,
+    instrumentosEvaluacion: Record<string, InstrumentoEvaluacion>,
+    teacherData: TeacherData,
+    instituteData: InstituteData
+) => {
+    const doc = new jsPDF('p', 'mm', 'a4');
+    let isFirstPage = true;
+
+    const didDrawPage = (data: any) => {
+        const doc = data.doc;
+        const pageWidth = doc.internal.pageSize.getWidth();
+        addImageToPdf(doc, instituteData.logo, PAGE_MARGIN, 10, 15, 15);
+        doc.setFontSize(12).setFont('helvetica', 'bold').setTextColor(40).text('Planificación por Resultados de Aprendizaje', pageWidth / 2, 16, { align: 'center' });
+        addFooter(doc, data, teacherData, instituteData);
+    };
+
+    const sortedRAs = Object.values(resultadosAprendizaje).sort((a, b) => a.nombre.localeCompare(b.nombre));
+
+    sortedRAs.forEach((ra, raIndex) => {
+        if (raIndex > 0) {
+            doc.addPage();
+        }
+        
+        let lastY = 25;
+
+        // RA Title
+        autoTable(doc, {
+            startY: lastY,
+            body: [[{ content: ra.nombre, styles: { fontStyle: 'bold', fontSize: 14, halign: 'center', fillColor: [232, 245, 252], textColor: [26, 115, 232] } }]],
+            theme: 'plain',
+            didDrawPage: isFirstPage ? didDrawPage : (data) => addFooter(doc, data, teacherData, instituteData),
+        });
+        isFirstPage = false;
+        lastY = (doc as any).lastAutoTable.finalY + 5;
+
+        const criteriosBody: any[][] = [];
+        ra.criteriosEvaluacion.forEach(critId => {
+            const criterio = criteriosEvaluacion[critId];
+            if (!criterio) return;
+
+            const asociationsText: string[] = [];
+            (criterio.asociaciones || []).forEach(asoc => {
+                const utName = unidadesTrabajo[asoc.utId]?.nombre || 'UT desconocida';
+                const activitiesText = (asoc.activityIds || []).map(actId => {
+                    for (const inst of Object.values(instrumentosEvaluacion)) {
+                        const activity = inst.activities.find(a => a.id === actId);
+                        if (activity) {
+                            return `${inst.nombre}: ${activity.name}`;
+                        }
+                    }
+                    return 'Actividad desconocida';
+                }).join(', ');
+                asociationsText.push(`• ${utName}: ${activitiesText || 'Ninguna'}`);
+            });
+
+            criteriosBody.push([
+                { content: `${criterio.ponderacion}%` },
+                { content: criterio.descripcion },
+                { content: asociationsText.join('\n') || 'Sin asociaciones' }
+            ]);
+        });
+
+        if (criteriosBody.length > 0) {
+             autoTable(doc, {
+                startY: lastY,
+                head: [['Pond.', 'Criterio de Evaluación', 'Asociaciones (UT: Instrumento)']],
+                body: criteriosBody,
+                theme: 'striped',
+                headStyles: { fillColor: [74, 85, 104], fontSize: 9 },
+                styles: { fontSize: 9, cellPadding: 2, valign: 'middle' },
+                columnStyles: {
+                    0: { cellWidth: 15, halign: 'center' },
+                    1: { cellWidth: 'auto' },
+                    2: { cellWidth: 60, fontSize: 8, whiteSpace: 'pre-wrap' },
+                },
+                didDrawPage: (data) => addFooter(doc, data, teacherData, instituteData)
+            });
+        } else {
+             doc.setFontSize(9).setTextColor(100).text('Este RA no tiene criterios de evaluación definidos.', PAGE_MARGIN, lastY);
+        }
+    });
+
+    doc.save(`Planificacion_por_RA.pdf`);
+};

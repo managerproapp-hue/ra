@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useAppContext } from '../context/AppContext';
 import { ResultadoAprendizaje, CriterioEvaluacion, AsociacionCriterio, UnidadTrabajo, InstrumentoEvaluacion, EvaluationActivity } from '../types';
-import { PlusIcon, PencilIcon, TrashIcon, ChevronDownIcon, ChevronRightIcon, SaveIcon, XIcon, FileTextIcon, SettingsIcon } from '../components/icons';
+import { PlusIcon, PencilIcon, TrashIcon, ChevronDownIcon, ChevronRightIcon, SaveIcon, XIcon, FileTextIcon, SettingsIcon, PrinterIcon } from '../components/icons';
 import { calculateRAGrade, calculateCriterioGrade } from '../services/academicAnalytics';
+import { generateRAPlanningPDF } from '../services/reportGenerator';
 
 // Modal for RA/Criterio Form
 interface FormModalProps {
@@ -243,6 +244,8 @@ const RAView: React.FC = () => {
         instrumentosEvaluacion,
         academicGrades,
         calculatedStudentGrades,
+        teacherData,
+        instituteData,
         handleSaveRA,
         handleDeleteRA,
         handleSaveCriterio,
@@ -354,6 +357,17 @@ const RAView: React.FC = () => {
         setAsocModalState({isOpen: false, criterio: null});
     };
 
+    const handlePrintRAs = () => {
+        generateRAPlanningPDF(
+            resultadosAprendizaje,
+            criteriosEvaluacion,
+            unidadesTrabajo,
+            instrumentosEvaluacion,
+            teacherData,
+            instituteData
+        );
+    };
+
     return (
         <div>
             <header className="flex justify-between items-center mb-8">
@@ -361,24 +375,38 @@ const RAView: React.FC = () => {
                     <h1 className="text-3xl font-bold text-gray-800 flex items-center"><FileTextIcon className="w-8 h-8 mr-3 text-purple-500"/>Resultados de Aprendizaje y Criterios</h1>
                     <p className="text-gray-500 mt-1">Define y gestiona la estructura académica de RAs, criterios y sus asociaciones.</p>
                 </div>
-                <button onClick={() => handleOpenFormModal('ra', { id: `ra_${Date.now()}`, nombre: '', descripcion: '', ponderacion: 0, competencias: [], criteriosEvaluacion: [] })} className="flex items-center bg-blue-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-blue-600 transition">
-                    <PlusIcon className="w-5 h-5 mr-1" /> Nuevo RA
-                </button>
+                <div className="flex items-center space-x-2">
+                    <button onClick={handlePrintRAs} className="flex items-center bg-gray-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-gray-700 transition">
+                        <PrinterIcon className="w-5 h-5 mr-1" /> Imprimir RAs
+                    </button>
+                    <button onClick={() => handleOpenFormModal('ra', { id: `ra_${Date.now()}`, nombre: '', descripcion: '', ponderacion: 0, competencias: [], criteriosEvaluacion: [] })} className="flex items-center bg-blue-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-blue-600 transition">
+                        <PlusIcon className="w-5 h-5 mr-1" /> Nuevo RA
+                    </button>
+                </div>
             </header>
             
             <div className="space-y-4">
                 {(Object.values(resultadosAprendizaje) as ResultadoAprendizaje[]).sort((a, b) => a.nombre.localeCompare(b.nombre)).map((ra) => {
                     const isExpanded = expandedRAs.has(ra.id);
+                    const ponderacionTotalCriterios = (ra.criteriosEvaluacion || []).reduce((sum, critId) => {
+                        const criterio = criteriosEvaluacion[critId];
+                        return sum + (criterio?.ponderacion || 0);
+                    }, 0);
+                    const ponderacionColor = ponderacionTotalCriterios === 100 ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800';
+
                     return (
                         <div key={ra.id} className="bg-white rounded-lg shadow-sm">
                             <div className="flex items-center p-4">
                                 <button className="p-1" onClick={() => toggleExpand(ra.id)}>{isExpanded ? <ChevronDownIcon/> : <ChevronRightIcon/>}</button>
                                 <div className="flex-1 ml-2">
-                                    <div className="flex items-center gap-3">
+                                    <div className="flex items-center gap-3 flex-wrap">
                                         <h3 className="font-bold">{ra.nombre}</h3>
                                         <GradeBadge grade={averageGrades.raAverages.get(ra.id)} />
+                                        <span className={`px-2 py-0.5 text-xs font-semibold rounded-full ${ponderacionColor}`}>
+                                            Σ Pond: {ponderacionTotalCriterios}%
+                                        </span>
                                     </div>
-                                    <p className="text-sm text-gray-500">{ra.descripcion}</p>
+                                    <p className="text-sm text-gray-500 mt-1">{ra.descripcion}</p>
                                 </div>
                                 <div className="flex items-center space-x-2">
                                     <button onClick={() => handleOpenFormModal('ra', ra)} className="p-2 text-gray-500 hover:text-blue-600 hover:bg-gray-100 rounded-full"><PencilIcon className="w-4 h-4"/></button>
@@ -399,6 +427,9 @@ const RAView: React.FC = () => {
                                                         <p className="text-sm font-medium flex-1 pr-4">{criterio.descripcion}</p>
                                                         <div className="flex items-center space-x-2 flex-shrink-0">
                                                             <GradeBadge grade={averageGrades.criterioAverages.get(criterio.id)} />
+                                                            <span className="text-xs bg-gray-200 text-gray-800 px-2 py-1 rounded-full font-semibold">
+                                                                {criterio.ponderacion}%
+                                                            </span>
                                                             <button onClick={() => setAsocModalState({isOpen: true, criterio})} className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded hover:bg-blue-200">Asociaciones ({asociaciones.length})</button>
                                                             <button onClick={() => handleOpenFormModal('criterio', criterio, ra.id)} className="p-1.5 text-gray-500 hover:text-blue-600 hover:bg-gray-50 rounded-full"><PencilIcon className="w-4 h-4"/></button>
                                                             <button onClick={() => handleDelete('criterio', criterio.id, ra.id)} className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-gray-50 rounded-full"><TrashIcon className="w-4 h-4"/></button>
