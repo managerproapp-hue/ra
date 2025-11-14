@@ -308,6 +308,11 @@ const RAView: React.FC = () => {
         return map;
     }, [instrumentosEvaluacion]);
 
+    const totalRAPonderacion = useMemo(() => {
+        return (Object.values(resultadosAprendizaje) as ResultadoAprendizaje[])
+            .reduce((sum, ra) => sum + (ra.ponderacion || 0), 0);
+    }, [resultadosAprendizaje]);
+
     const handleOpenFormModal = (type: 'ra' | 'criterio', data: any, parentRaId: string | null = null) => {
         setFormModalState({ isOpen: true, type, data, parentRaId });
     };
@@ -368,20 +373,27 @@ const RAView: React.FC = () => {
         );
     };
 
+    const totalRAColor = totalRAPonderacion === 100 ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800';
+
     return (
         <div>
-            <header className="flex justify-between items-center mb-8">
+            <header className="flex flex-wrap justify-between items-center gap-4 mb-8">
                 <div>
                     <h1 className="text-3xl font-bold text-gray-800 flex items-center"><FileTextIcon className="w-8 h-8 mr-3 text-purple-500"/>Resultados de Aprendizaje y Criterios</h1>
                     <p className="text-gray-500 mt-1">Define y gestiona la estructura académica de RAs, criterios y sus asociaciones.</p>
                 </div>
-                <div className="flex items-center space-x-2">
-                    <button onClick={handlePrintRAs} className="flex items-center bg-gray-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-gray-700 transition">
-                        <PrinterIcon className="w-5 h-5 mr-1" /> Imprimir RAs
-                    </button>
-                    <button onClick={() => handleOpenFormModal('ra', { id: `ra_${Date.now()}`, nombre: '', descripcion: '', ponderacion: 0, competencias: [], criteriosEvaluacion: [] })} className="flex items-center bg-blue-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-blue-600 transition">
-                        <PlusIcon className="w-5 h-5 mr-1" /> Nuevo RA
-                    </button>
+                <div className="flex items-center space-x-4">
+                    <div className={`px-4 py-2 text-sm font-bold rounded-lg ${totalRAColor}`}>
+                        Suma Total RAs: {totalRAPonderacion}%
+                    </div>
+                    <div className="flex items-center space-x-2">
+                        <button onClick={handlePrintRAs} className="flex items-center bg-gray-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-gray-700 transition">
+                            <PrinterIcon className="w-5 h-5 mr-1" /> Imprimir RAs
+                        </button>
+                        <button onClick={() => handleOpenFormModal('ra', { id: `ra_${Date.now()}`, nombre: '', descripcion: '', ponderacion: 0, competencias: [], criteriosEvaluacion: [] })} className="flex items-center bg-blue-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-blue-600 transition">
+                            <PlusIcon className="w-5 h-5 mr-1" /> Nuevo RA
+                        </button>
+                    </div>
                 </div>
             </header>
             
