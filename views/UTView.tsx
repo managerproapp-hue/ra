@@ -51,9 +51,8 @@ const AsociacionesSummary: React.FC<{
     criteriosEvaluacion: Record<string, CriterioEvaluacion>;
     resultadosAprendizaje: Record<string, ResultadoAprendizaje>;
 }> = ({ ut, criteriosEvaluacion, resultadosAprendizaje }) => {
-    const CriteriosAsociadosPorRA = useMemo(() => {
+    const CriteriosAsociadosPorRA = (() => {
         const grouped: Record<string, { ra: ResultadoAprendizaje; criterios: CriterioEvaluacion[] }> = {};
-        // FIX: Explicitly cast Object.values to resolve type errors on properties like 'asociaciones' and 'raId'.
         const allCriterios = Object.values(criteriosEvaluacion) as CriterioEvaluacion[];
 
         const criteriaForThisUT = allCriterios.filter((c) => 
@@ -76,7 +75,7 @@ const AsociacionesSummary: React.FC<{
         });
 
         return Object.values(grouped);
-    }, [ut.id, resultadosAprendizaje, criteriosEvaluacion]);
+    })();
 
     if (CriteriosAsociadosPorRA.length === 0) {
         return <p className="text-xs text-gray-500">Esta UT no está asociada a ningún criterio de evaluación.</p>;

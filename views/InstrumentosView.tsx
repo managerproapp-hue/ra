@@ -243,8 +243,8 @@ const InstrumentosView: React.FC = () => {
     };
     
     const handleSaveAllPonderaciones = () => {
-        // FIX: Explicitly type 'inst' as InstrumentoEvaluacion to resolve type errors.
-        const totalPeso = Object.values(localInstrumentos).reduce((sum, inst: InstrumentoEvaluacion) => sum + (inst.pesoTotal || 0), 0);
+        // FIX: Provide initial value to reduce to ensure correct type inference for the accumulator.
+        const totalPeso = Object.values(localInstrumentos).reduce((sum, inst) => sum + (inst.pesoTotal || 0), 0);
         if (totalPeso > 100) {
             addToast(`El peso total no puede superar el 100% (actual: ${totalPeso}%)`, 'error');
             return;
@@ -253,8 +253,8 @@ const InstrumentosView: React.FC = () => {
         addToast('Ponderaciones guardadas con éxito.', 'success');
     };
 
-    // FIX: Explicitly type 'inst' as InstrumentoEvaluacion to resolve type errors.
-    const totalPeso = useMemo(() => Object.values(localInstrumentos).reduce((sum, inst: InstrumentoEvaluacion) => sum + (inst.pesoTotal || 0), 0), [localInstrumentos]);
+    // FIX: Provide initial value to reduce to ensure correct type inference for the accumulator.
+    const totalPeso = useMemo(() => Object.values(localInstrumentos).reduce((sum, inst) => sum + (inst.pesoTotal || 0), 0), [localInstrumentos]);
 
     return (
         <div>
