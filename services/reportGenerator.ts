@@ -552,66 +552,65 @@ export const generateStudentFilePDF = (
     doc.save(`Ficha_Alumno_${student.apellido1}_${student.nombre}.pdf`);
 };
 
-// --- NEW: UT Report PDF ---
-// FIX: Add correct type for utData
-export const generateUTReportPDF = (utData: { ut: UnidadTrabajo, associatedRAs: { ra: ResultadoAprendizaje; criterios: { criterio: CriterioEvaluacion; instrumentos: string[]; }[] }[] }, teacherData: TeacherData, instituteData: InstituteData) => {
-    const { ut, associatedRAs } = utData;
-    const doc = new jsPDF('p', 'mm', 'a4');
+// --- NEW: Full Planning PDF ---
+
+type UTReportData = {
+    ut: UnidadTrabajo,
+    associatedRAs: {
+        ra: ResultadoAprendizaje;
+        criterios: {
+            criterio: CriterioEvaluacion;
+            instrumentos: string[];
+        }[];
+    }[]
+};
+
+const drawUTPage = (doc: jsPDF, utData: UTReportData, teacherData: TeacherData, instituteData: InstituteData) => {
     let lastY = 0;
+    const { ut, associatedRAs } = utData;
 
     const didDrawPage = (data: any) => {
         const doc = data.doc;
         const pageWidth = doc.internal.pageSize.getWidth();
-        
-        // HEADER
         addImageToPdf(doc, instituteData.logo, PAGE_MARGIN, 10, 15, 15);
-        
-        doc.setFontSize(14).setFont('helvetica', 'bold').setTextColor(40);
-        doc.text(`Planificación de la Unidad de Trabajo`, pageWidth / 2, 16, { align: 'center' });
-        doc.setFontSize(18).setFont('helvetica', 'bold').setTextColor(0);
-        doc.text(ut.nombre, pageWidth / 2, 24, { align: 'center' });
-        
-        // FOOTER
+        doc.setFontSize(12).setFont('helvetica', 'bold').setTextColor(40).text('Planificación Académica Completa', pageWidth / 2, 16, { align: 'center' });
         addFooter(doc, data, teacherData, instituteData);
     };
-
-    lastY = 35; // Initial Y position after header
+    
+    // UT Title
+    autoTable(doc, {
+        startY: 25,
+        body: [[{ content: ut.nombre, styles: { fontStyle: 'bold', fontSize: 14, halign: 'center' } }]],
+        theme: 'plain',
+        didDrawPage
+    });
+    lastY = (doc as any).lastAutoTable.finalY + 5;
 
     if (associatedRAs.length === 0) {
-        autoTable(doc, {
-            startY: lastY,
-            body: [['Esta unidad de trabajo no tiene criterios de evaluación asociados.']],
-            didDrawPage,
-        });
-        doc.save(`Planificacion_${ut.nombre.replace(/ /g, '_')}.pdf`);
+        doc.setFontSize(10).setTextColor(100).text('Esta unidad de trabajo no tiene criterios de evaluación asociados.', PAGE_MARGIN, lastY);
         return;
     }
 
     associatedRAs.forEach(raData => {
-        // Check for page break before adding RA section
-        if (lastY > doc.internal.pageSize.getHeight() - 50) { // rough estimate
+        if (lastY > doc.internal.pageSize.getHeight() - 50) {
             doc.addPage();
-            lastY = 35;
+            lastY = 25;
         }
 
         autoTable(doc, {
             startY: lastY,
-            body: [[{ content: raData.ra.nombre, styles: { fontStyle: 'bold', fontSize: 12 } }]],
+            body: [[{ content: raData.ra.nombre, styles: { fontStyle: 'bold', fontSize: 11 } }]],
             theme: 'plain',
             styles: { fillColor: [232, 245, 252], textColor: [26, 115, 232] },
             didDrawPage
         });
         lastY = (doc as any).lastAutoTable.finalY;
 
-        const criteriosBody: any[][] = [];
-        raData.criterios.forEach(c => {
-            const instrumentosText = c.instrumentos.map(inst => `• ${inst}`).join('\n');
-            criteriosBody.push([
-                { content: `C.E. (${c.criterio.ponderacion}%)`, styles: { fontStyle: 'bold', cellWidth: 30 } },
-                { content: c.criterio.descripcion, styles: { cellWidth: 'auto'} },
-                { content: instrumentosText, styles: { cellWidth: 50, fontSize: 8, whiteSpace: 'pre-wrap' } }
-            ]);
-        });
+        const criteriosBody: any[][] = raData.criterios.map(c => [
+            { content: `${c.criterio.ponderacion}%`, styles: { fontStyle: 'bold', cellWidth: 20 } },
+            { content: c.criterio.descripcion, styles: { cellWidth: 'auto'} },
+            { content: c.instrumentos.map(inst => `• ${inst}`).join('\n'), styles: { cellWidth: 50, fontSize: 8, whiteSpace: 'pre-wrap' } }
+        ]);
 
         autoTable(doc, {
             startY: lastY,
@@ -624,6 +623,21 @@ export const generateUTReportPDF = (utData: { ut: UnidadTrabajo, associatedRAs: 
         });
         lastY = (doc as any).lastAutoTable.finalY + 8;
     });
+};
 
-    doc.save(`Planificacion_${ut.nombre.replace(/ /g, '_')}.pdf`);
+export const generateFullPlanningPDF = (
+    allUTData: UTReportData[],
+    teacherData: TeacherData,
+    instituteData: InstituteData
+) => {
+    const doc = new jsPDF('p', 'mm', 'a4');
+    
+    allUTData.forEach((utData, index) => {
+        if (index > 0) {
+            doc.addPage();
+        }
+        drawUTPage(doc, utData, teacherData, instituteData);
+    });
+
+    doc.save(`Planificacion_Academica_Completa.pdf`);
 };
