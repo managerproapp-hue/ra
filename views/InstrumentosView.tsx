@@ -173,7 +173,7 @@ const getGradeForActivity = (
 const GradesMatrix: React.FC<{
     instrument: InstrumentoEvaluacion;
 }> = ({ instrument }) => {
-    const { students, academicGrades, calculatedStudentGrades } = useAppContext();
+    const { students, academicGrades, calculatedGrades } = useAppContext();
     const sortedStudents = useMemo(() => [...students].sort((a,b) => a.apellido1.localeCompare(b.apellido1)), [students]);
 
     if(instrument.activities.length === 0) {
@@ -196,7 +196,7 @@ const GradesMatrix: React.FC<{
                         <tr key={student.id} className="hover:bg-gray-100 group">
                             <td className="p-2 border text-left font-medium text-gray-800 w-48 sticky left-0 bg-white group-hover:bg-gray-100">{`${student.apellido1} ${student.apellido2}, ${student.nombre}`}</td>
                             {instrument.activities.map(act => {
-                                const grade = getGradeForActivity(student.id, act, academicGrades, calculatedStudentGrades);
+                                const grade = getGradeForActivity(student.id, act, academicGrades, calculatedGrades);
                                 return (
                                     <td key={act.id} className={`p-2 border text-center font-semibold ${grade !== null && grade < 5 ? 'text-red-600' : 'text-gray-800'}`}>
                                         {grade !== null ? grade.toFixed(2) : '-'}
@@ -243,8 +243,8 @@ const InstrumentosView: React.FC = () => {
     };
     
     const handleSaveAllPonderaciones = () => {
-        // FIX: Provide initial value to reduce to ensure correct type inference for the accumulator.
-        const totalPeso = Object.values(localInstrumentos).reduce((sum, inst) => sum + (inst.pesoTotal || 0), 0);
+        // FIX: The type of `inst` is inferred as `unknown` from Object.values(), causing a type error. Casting the result of Object.values() to an array of the correct type resolves this.
+        const totalPeso = (Object.values(localInstrumentos) as InstrumentoEvaluacion[]).reduce((sum, inst) => sum + (inst.pesoTotal || 0), 0);
         if (totalPeso > 100) {
             addToast(`El peso total no puede superar el 100% (actual: ${totalPeso}%)`, 'error');
             return;
@@ -253,8 +253,8 @@ const InstrumentosView: React.FC = () => {
         addToast('Ponderaciones guardadas con éxito.', 'success');
     };
 
-    // FIX: Provide initial value to reduce to ensure correct type inference for the accumulator.
-    const totalPeso = useMemo(() => Object.values(localInstrumentos).reduce((sum, inst) => sum + (inst.pesoTotal || 0), 0), [localInstrumentos]);
+    // FIX: The type of `inst` is inferred as `unknown` from Object.values(), causing a type error. Casting the result of Object.values() to an array of the correct type resolves this.
+    const totalPeso = useMemo(() => (Object.values(localInstrumentos) as InstrumentoEvaluacion[]).reduce((sum, inst) => sum + (inst.pesoTotal || 0), 0), [localInstrumentos]);
 
     return (
         <div>

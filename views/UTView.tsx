@@ -1,7 +1,8 @@
 import React, { useState, useMemo } from 'react';
 import { useAppContext } from '../context/AppContext';
-import { UnidadTrabajo, CriterioEvaluacion, ResultadoAprendizaje } from '../types';
-import { PlusIcon, PencilIcon, TrashIcon, SaveIcon, XIcon, BookOpenIcon, ChevronDownIcon, ChevronRightIcon } from '../components/icons';
+import { UnidadTrabajo, CriterioEvaluacion, ResultadoAprendizaje, InstrumentoEvaluacion } from '../types';
+import { PlusIcon, PencilIcon, TrashIcon, SaveIcon, XIcon, BookOpenIcon, ChevronDownIcon, ChevronRightIcon, PrinterIcon } from '../components/icons';
+import { generateUTReportPDF } from '../services/reportGenerator';
 
 interface UTFormModalProps {
     isOpen: boolean;
@@ -47,47 +48,34 @@ const UTFormModal: React.FC<UTFormModalProps> = ({ isOpen, onClose, onSave, init
 };
 
 const AsociacionesSummary: React.FC<{ 
-    ut: UnidadTrabajo;
-    criteriosEvaluacion: Record<string, CriterioEvaluacion>;
-    resultadosAprendizaje: Record<string, ResultadoAprendizaje>;
-}> = ({ ut, criteriosEvaluacion, resultadosAprendizaje }) => {
-    const CriteriosAsociadosPorRA = (() => {
-        const grouped: Record<string, { ra: ResultadoAprendizaje; criterios: CriterioEvaluacion[] }> = {};
-        const allCriterios = Object.values(criteriosEvaluacion) as CriterioEvaluacion[];
-
-        const criteriaForThisUT = allCriterios.filter((c) => 
-            (c.asociaciones || []).some(a => a.utId === ut.id)
-        );
-        
-        criteriaForThisUT.forEach(crit => {
-            const raId = crit.raId;
-            if (!raId) return;
-
-            if (!grouped[raId]) {
-                const ra = resultadosAprendizaje[raId];
-                if (ra) {
-                    grouped[raId] = { ra, criterios: [] };
-                }
-            }
-            if (grouped[raId]) {
-                grouped[raId].criterios.push(crit);
-            }
-        });
-
-        return Object.values(grouped);
-    })();
-
-    if (CriteriosAsociadosPorRA.length === 0) {
-        return <p className="text-xs text-gray-500">Esta UT no está asociada a ningún criterio de evaluación.</p>;
+    structuredData: { ra: ResultadoAprendizaje; criterios: { criterio: CriterioEvaluacion; instrumentos: string[] }[] }[];
+}> = ({ structuredData }) => {
+    
+    if (structuredData.length === 0) {
+        return <p className="text-sm text-gray-500">Esta UT no está asociada a ningún criterio de evaluación.</p>;
     }
 
     return (
-        <div className="space-y-2">
-            {CriteriosAsociadosPorRA.map(({ ra, criterios }) => (
-                <div key={ra.id} className="text-xs bg-gray-100 p-2 rounded">
-                    <p className="font-semibold">{ra.nombre}</p>
-                    <ul className="list-disc list-inside pl-2 mt-1 space-y-1">
-                        {criterios.map(c => <li key={c.id} className="text-gray-700">{c.descripcion}</li>)}
+        <div className="space-y-4">
+            {structuredData.map(({ ra, criterios }) => (
+                <div key={ra.id} className="text-sm bg-gray-50 p-3 rounded-lg border">
+                    <p className="font-bold text-base text-blue-700">{ra.nombre}</p>
+                    <ul className="mt-2 space-y-3">
+                        {criterios.map(({ criterio, instrumentos }) => (
+                            <li key={criterio.id} className="pl-4 border-l-2 border-blue-200">
+                                <p className="font-semibold text-gray-800">{criterio.descripcion}</p>
+                                {instrumentos.length > 0 && (
+                                    <div className="mt-1">
+                                        <p className="text-xs font-bold text-gray-500">Instrumentos:</p>
+                                        <div className="flex flex-wrap gap-1 mt-1">
+                                            {instrumentos.map((inst, index) => (
+                                                <span key={index} className="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full">{inst}</span>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                            </li>
+                        ))}
                     </ul>
                 </div>
             ))}
@@ -97,7 +85,16 @@ const AsociacionesSummary: React.FC<{
 
 
 const UTView: React.FC = () => {
-    const { unidadesTrabajo, resultadosAprendizaje, criteriosEvaluacion, handleSaveUT, handleDeleteUT } = useAppContext();
+    const { 
+        unidadesTrabajo, 
+        resultadosAprendizaje, 
+        criteriosEvaluacion, 
+        instrumentosEvaluacion, 
+        handleSaveUT, 
+        handleDeleteUT,
+        teacherData,
+        instituteData
+    } = useAppContext();
     const [modalState, setModalState] = useState<{ isOpen: boolean; data: UnidadTrabajo | null }>({ isOpen: false, data: null });
     const [expandedUTs, setExpandedUTs] = useState<Set<string>>(new Set());
 
@@ -118,19 +115,81 @@ const UTView: React.FC = () => {
             return newSet;
         });
     };
+    
+    // This hook computes the detailed structure for each UT. It's used by both the summary and the PDF generator.
+    const structuredDataByUT = useMemo(() => {
+        const data: Record<string, { ra: ResultadoAprendizaje; criterios: { criterio: CriterioEvaluacion; instrumentos: string[] }[] }[]> = {};
+        const allCriterios = Object.values(criteriosEvaluacion) as CriterioEvaluacion[];
+        const allInstrumentos = Object.values(instrumentosEvaluacion) as InstrumentoEvaluacion[];
+
+        Object.keys(unidadesTrabajo).forEach(utId => {
+            const grouped: Record<string, { ra: ResultadoAprendizaje; criterios: { criterio: CriterioEvaluacion; instrumentos: string[] }[] }> = {};
+            
+            const criteriaForThisUT = allCriterios.filter(c => 
+                (c.asociaciones || []).some(a => a.utId === utId)
+            );
+
+            criteriaForThisUT.forEach(crit => {
+                const raId = crit.raId;
+                if (!raId) return;
+
+                if (!grouped[raId]) {
+                    const ra = resultadosAprendizaje[raId];
+                    if (ra) {
+                        grouped[raId] = { ra, criterios: [] };
+                    }
+                }
+                
+                if (grouped[raId]) {
+                    const asociacionForThisUT = (crit.asociaciones || []).find(a => a.utId === utId);
+                    const instrumentos: string[] = [];
+                    
+                    if (asociacionForThisUT) {
+                        asociacionForThisUT.activityIds.forEach(actId => {
+                            for (const inst of allInstrumentos) {
+                                const activity = inst.activities.find(a => a.id === actId);
+                                if (activity) {
+                                    instrumentos.push(`${inst.nombre}: ${activity.name} (${activity.trimester.toUpperCase()})`);
+                                    break;
+                                }
+                            }
+                        });
+                    }
+
+                    grouped[raId].criterios.push({ criterio: crit, instrumentos });
+                }
+            });
+
+            data[utId] = Object.values(grouped).sort((a, b) => a.ra.nombre.localeCompare(b.ra.nombre));
+        });
+
+        return data;
+    }, [unidadesTrabajo, criteriosEvaluacion, resultadosAprendizaje, instrumentosEvaluacion]);
+
+    const handlePrint = (ut: UnidadTrabajo) => {
+        const utData = structuredDataByUT[ut.id];
+        if (!utData) return;
+        
+        generateUTReportPDF({
+            ut,
+            associatedRAs: utData
+        }, teacherData, instituteData);
+    };
 
     return (
         <div>
             <header className="flex justify-between items-center mb-8">
                 <div>
                     <h1 className="text-3xl font-bold text-gray-800 flex items-center"><BookOpenIcon className="w-8 h-8 mr-3 text-purple-500"/>Unidades de Trabajo (UT)</h1>
-                    <p className="text-gray-500 mt-1">Define las unidades didácticas. Las asociaciones se gestionan desde la vista de RA.</p>
+                    <p className="text-gray-500 mt-1">Define las unidades didácticas y visualiza su planificación académica completa.</p>
                 </div>
                 <button onClick={() => handleOpenModal(null)} className="flex items-center bg-green-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-green-600 transition"><PlusIcon className="w-5 h-5 mr-1" /> Nueva UT</button>
             </header>
             <div className="space-y-4">
                 {Object.values(unidadesTrabajo || {}).map((ut: UnidadTrabajo) => {
                     const isExpanded = expandedUTs.has(ut.id);
+                    const structuredData = structuredDataByUT[ut.id] || [];
+
                     return (
                         <div key={ut.id} className="bg-white rounded-lg shadow-sm">
                             <div className="flex items-center p-4">
@@ -142,18 +201,15 @@ const UTView: React.FC = () => {
                                     <p className="text-sm text-gray-600">{ut.descripcion}</p>
                                 </div>
                                 <div className="flex items-center space-x-2">
+                                    <button onClick={() => handlePrint(ut)} title="Generar PDF de la Planificación" className="p-2 text-gray-500 hover:text-purple-600 hover:bg-gray-100 rounded-full"><PrinterIcon className="w-4 h-4" /></button>
                                     <button onClick={() => handleOpenModal(ut)} className="p-2 text-gray-500 hover:text-blue-600 hover:bg-gray-100 rounded-full"><PencilIcon className="w-4 h-4" /></button>
                                     <button onClick={() => handleDeleteUT(ut.id)} className="p-2 text-gray-500 hover:text-red-600 hover:bg-gray-100 rounded-full"><TrashIcon className="w-4 h-4" /></button>
                                 </div>
                             </div>
                             {isExpanded && (
                                 <div className="mt-3 pt-3 border-t p-4">
-                                    <h4 className="text-xs font-bold text-gray-500 uppercase mb-2">Resumen de Criterios Asociados (Solo Lectura)</h4>
-                                    <AsociacionesSummary 
-                                        ut={ut} 
-                                        criteriosEvaluacion={criteriosEvaluacion} 
-                                        resultadosAprendizaje={resultadosAprendizaje} 
-                                    />
+                                    <h4 className="text-sm font-bold text-gray-500 uppercase mb-3">Planificación Académica Asociada</h4>
+                                    <AsociacionesSummary structuredData={structuredData} />
                                 </div>
                             )}
                         </div>

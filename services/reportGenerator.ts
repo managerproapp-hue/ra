@@ -1,6 +1,6 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { ReportViewModel, Student, ServiceRole, TeacherData, InstituteData, StudentCalculatedGrades, StudentAcademicGrades, StudentCourseGrades, TimelineEvent, GradeValue } from '../types';
+import { ReportViewModel, Student, ServiceRole, TeacherData, InstituteData, StudentCalculatedGrades, StudentAcademicGrades, StudentCourseGrades, TimelineEvent, GradeValue, UnidadTrabajo, ResultadoAprendizaje, CriterioEvaluacion, InstrumentoEvaluacion } from '../types';
 import { PRE_SERVICE_BEHAVIOR_ITEMS, BEHAVIOR_RATING_MAP, INDIVIDUAL_EVALUATION_ITEMS, GROUP_EVALUATION_ITEMS, ACADEMIC_EVALUATION_STRUCTURE, COURSE_MODULES } from '../data/constants';
 import { calculateStudentPeriodAverages } from './gradeCalculator';
 
@@ -550,4 +550,80 @@ export const generateStudentFilePDF = (
     }
     
     doc.save(`Ficha_Alumno_${student.apellido1}_${student.nombre}.pdf`);
+};
+
+// --- NEW: UT Report PDF ---
+// FIX: Add correct type for utData
+export const generateUTReportPDF = (utData: { ut: UnidadTrabajo, associatedRAs: { ra: ResultadoAprendizaje; criterios: { criterio: CriterioEvaluacion; instrumentos: string[]; }[] }[] }, teacherData: TeacherData, instituteData: InstituteData) => {
+    const { ut, associatedRAs } = utData;
+    const doc = new jsPDF('p', 'mm', 'a4');
+    let lastY = 0;
+
+    const didDrawPage = (data: any) => {
+        const doc = data.doc;
+        const pageWidth = doc.internal.pageSize.getWidth();
+        
+        // HEADER
+        addImageToPdf(doc, instituteData.logo, PAGE_MARGIN, 10, 15, 15);
+        
+        doc.setFontSize(14).setFont('helvetica', 'bold').setTextColor(40);
+        doc.text(`Planificación de la Unidad de Trabajo`, pageWidth / 2, 16, { align: 'center' });
+        doc.setFontSize(18).setFont('helvetica', 'bold').setTextColor(0);
+        doc.text(ut.nombre, pageWidth / 2, 24, { align: 'center' });
+        
+        // FOOTER
+        addFooter(doc, data, teacherData, instituteData);
+    };
+
+    lastY = 35; // Initial Y position after header
+
+    if (associatedRAs.length === 0) {
+        autoTable(doc, {
+            startY: lastY,
+            body: [['Esta unidad de trabajo no tiene criterios de evaluación asociados.']],
+            didDrawPage,
+        });
+        doc.save(`Planificacion_${ut.nombre.replace(/ /g, '_')}.pdf`);
+        return;
+    }
+
+    associatedRAs.forEach(raData => {
+        // Check for page break before adding RA section
+        if (lastY > doc.internal.pageSize.getHeight() - 50) { // rough estimate
+            doc.addPage();
+            lastY = 35;
+        }
+
+        autoTable(doc, {
+            startY: lastY,
+            body: [[{ content: raData.ra.nombre, styles: { fontStyle: 'bold', fontSize: 12 } }]],
+            theme: 'plain',
+            styles: { fillColor: [232, 245, 252], textColor: [26, 115, 232] },
+            didDrawPage
+        });
+        lastY = (doc as any).lastAutoTable.finalY;
+
+        const criteriosBody: any[][] = [];
+        raData.criterios.forEach(c => {
+            const instrumentosText = c.instrumentos.map(inst => `• ${inst}`).join('\n');
+            criteriosBody.push([
+                { content: `C.E. (${c.criterio.ponderacion}%)`, styles: { fontStyle: 'bold', cellWidth: 30 } },
+                { content: c.criterio.descripcion, styles: { cellWidth: 'auto'} },
+                { content: instrumentosText, styles: { cellWidth: 50, fontSize: 8, whiteSpace: 'pre-wrap' } }
+            ]);
+        });
+
+        autoTable(doc, {
+            startY: lastY,
+            head: [['Pond. (RA)', 'Criterio de Evaluación', 'Instrumentos/Actividades']],
+            body: criteriosBody,
+            theme: 'striped',
+            headStyles: { fillColor: [74, 85, 104], fontSize: 9 },
+            styles: { fontSize: 9, cellPadding: 2, valign: 'middle' },
+            didDrawPage
+        });
+        lastY = (doc as any).lastAutoTable.finalY + 8;
+    });
+
+    doc.save(`Planificacion_${ut.nombre.replace(/ /g, '_')}.pdf`);
 };
