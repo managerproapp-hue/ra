@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useAppContext } from '../context/AppContext';
-import { ResultadoAprendizaje, CriterioEvaluacion, AsociacionCriterio, UnidadTrabajo, InstrumentoEvaluacion } from '../types';
+import { ResultadoAprendizaje, CriterioEvaluacion, AsociacionCriterio, UnidadTrabajo, InstrumentoEvaluacion, EvaluationActivity } from '../types';
 import { PlusIcon, PencilIcon, TrashIcon, ChevronDownIcon, ChevronRightIcon, SaveIcon, XIcon, FileTextIcon, SettingsIcon } from '../components/icons';
 
 // Modal for RA/Criterio Form
@@ -86,31 +86,46 @@ const AsociacionesModal: React.FC<AsociacionesModalProps> = ({ isOpen, onClose, 
     const { unidadesTrabajo, instrumentosEvaluacion } = useAppContext();
     const [asociaciones, setAsociaciones] = useState<AsociacionCriterio[]>(criterio.asociaciones || []);
     const [selectedUT, setSelectedUT] = useState('');
-    const [selectedInstrumentos, setSelectedInstrumentos] = useState<Set<string>>(new Set());
+    const [selectedActivities, setSelectedActivities] = useState<Set<string>>(new Set());
 
     if (!isOpen) return null;
 
+    const getActivityInfo = (activityId: string) => {
+        // FIX: Cast Object.values to InstrumentoEvaluacion[] to correctly type `inst`.
+        for (const inst of Object.values(instrumentosEvaluacion) as InstrumentoEvaluacion[]) {
+            const activity = inst.activities.find(act => act.id === activityId);
+            if (activity) {
+                return {
+                    instrumentName: inst.nombre,
+                    activityName: activity.name,
+                    trimester: activity.trimester
+                };
+            }
+        }
+        return null;
+    };
+
     const handleAddAsociacion = () => {
-        if (!selectedUT || selectedInstrumentos.size === 0) {
-            alert('Debes seleccionar una Unidad de Trabajo y al menos un instrumento.');
+        if (!selectedUT || selectedActivities.size === 0) {
+            alert('Debes seleccionar una Unidad de Trabajo y al menos una actividad de evaluación.');
             return;
         }
         const newAsociacion: AsociacionCriterio = {
             id: `asoc_${criterio.id}_${Date.now()}`,
             utId: selectedUT,
-            instrumentoIds: Array.from(selectedInstrumentos),
+            activityIds: Array.from(selectedActivities),
         };
         setAsociaciones(prev => [...prev, newAsociacion]);
         setSelectedUT('');
-        setSelectedInstrumentos(new Set());
+        setSelectedActivities(new Set());
     };
     
     const handleRemoveAsociacion = (id: string) => {
         setAsociaciones(prev => prev.filter(a => a.id !== id));
     };
 
-    const handleToggleInstrumento = (id: string) => {
-        setSelectedInstrumentos(prev => {
+    const handleToggleActivity = (id: string) => {
+        setSelectedActivities(prev => {
             const newSet = new Set(prev);
             if (newSet.has(id)) newSet.delete(id);
             else newSet.add(id);
@@ -141,17 +156,25 @@ const AsociacionesModal: React.FC<AsociacionesModalProps> = ({ isOpen, onClose, 
                                 </select>
                              </div>
                              <div>
-                                <label className="text-sm font-medium">2. Instrumentos de Evaluación</label>
-                                <div className="mt-1 space-y-1 max-h-40 overflow-y-auto border p-2 rounded bg-white">
-                                    {Object.values(instrumentosEvaluacion).map((inst: InstrumentoEvaluacion) => (
-                                        <label key={inst.id} className="flex items-center text-sm p-1 rounded hover:bg-gray-100">
-                                            <input type="checkbox" checked={selectedInstrumentos.has(inst.id)} onChange={() => handleToggleInstrumento(inst.id)} className="mr-2"/>
-                                            {inst.nombre}
-                                        </label>
+                                <label className="text-sm font-medium">2. Actividades de Evaluación</label>
+                                <div className="mt-1 space-y-2 max-h-40 overflow-y-auto border p-2 rounded bg-white">
+                                    {/* FIX: Cast Object.values to InstrumentoEvaluacion[] to correctly type `inst`. */}
+                                    {(Object.values(instrumentosEvaluacion) as InstrumentoEvaluacion[]).map(inst => (
+                                        <div key={inst.id}>
+                                            <h5 className="font-semibold text-xs text-gray-500 uppercase tracking-wider">{inst.nombre}</h5>
+                                            <div className="pl-2 space-y-1 mt-1">
+                                                {inst.activities.map(activity => (
+                                                    <label key={activity.id} className="flex items-center text-sm p-1 rounded hover:bg-gray-50 cursor-pointer">
+                                                        <input type="checkbox" checked={selectedActivities.has(activity.id)} onChange={() => handleToggleActivity(activity.id)} className="mr-2 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"/>
+                                                        {activity.name} ({activity.trimester.toUpperCase()})
+                                                    </label>
+                                                ))}
+                                            </div>
+                                        </div>
                                     ))}
                                 </div>
                              </div>
-                             <button onClick={handleAddAsociacion} className="w-full bg-blue-500 text-white py-2 rounded-md hover:bg-blue-600 disabled:opacity-50" disabled={!selectedUT || selectedInstrumentos.size === 0}>
+                             <button onClick={handleAddAsociacion} className="w-full bg-blue-500 text-white py-2 rounded-md hover:bg-blue-600 disabled:opacity-50" disabled={!selectedUT || selectedActivities.size === 0}>
                                 <PlusIcon className="w-5 h-5 inline mr-1"/> Añadir Asociación
                              </button>
                         </div>
@@ -167,9 +190,14 @@ const AsociacionesModal: React.FC<AsociacionesModalProps> = ({ isOpen, onClose, 
                                         <button onClick={() => handleRemoveAsociacion(asoc.id)} className="text-red-500 hover:text-red-700"><TrashIcon className="w-4 h-4"/></button>
                                     </div>
                                     <div className="flex flex-wrap gap-1 mt-1">
-                                        {asoc.instrumentoIds.map(id => (
-                                            <span key={id} className="text-xs bg-blue-200 text-blue-900 px-2 py-0.5 rounded-full">{instrumentosEvaluacion[id]?.nombre || 'Inválido'}</span>
-                                        ))}
+                                        {asoc.activityIds.map(id => {
+                                            const info = getActivityInfo(id);
+                                            return (
+                                                <span key={id} className="text-xs bg-blue-200 text-blue-900 px-2 py-0.5 rounded-full">
+                                                    {info ? `${info.instrumentName}: ${info.activityName}` : 'ID Inválido'}
+                                                </span>
+                                            );
+                                        })}
                                     </div>
                                 </div>
                             ))}
@@ -204,6 +232,16 @@ const RAView: React.FC = () => {
     
     const [formModalState, setFormModalState] = useState<{ isOpen: boolean; type: 'ra' | 'criterio' | null; data: any; parentRaId?: string | null }>({ isOpen: false, type: null, data: null });
     const [asocModalState, setAsocModalState] = useState<{isOpen: boolean; criterio: CriterioEvaluacion | null}>({isOpen: false, criterio: null});
+
+    const activityInfoMap = useMemo(() => {
+        const map = new Map<string, { instrumentName: string, activityName: string, trimester: 't1' | 't2' }>();
+        for (const inst of Object.values(instrumentosEvaluacion) as InstrumentoEvaluacion[]) {
+            for (const act of inst.activities) {
+                map.set(act.id, { instrumentName: inst.nombre, activityName: act.name, trimester: act.trimester });
+            }
+        }
+        return map;
+    }, [instrumentosEvaluacion]);
 
     const handleOpenFormModal = (type: 'ra' | 'criterio', data: any, parentRaId: string | null = null) => {
         setFormModalState({ isOpen: true, type, data, parentRaId });
@@ -302,7 +340,10 @@ const RAView: React.FC = () => {
                                                             <div key={asoc.id} className="flex gap-2 items-center">
                                                                 <span className="font-bold">{unidadesTrabajo[asoc.utId]?.nombre}:</span>
                                                                 <div className="flex flex-wrap gap-1">
-                                                                    {asoc.instrumentoIds.map(id => <span key={id} className="bg-gray-200 px-1.5 rounded">{instrumentosEvaluacion[id]?.nombre}</span>)}
+                                                                    {(asoc.activityIds || []).map(id => {
+                                                                        const info = activityInfoMap.get(id);
+                                                                        return <span key={id} className="bg-gray-200 px-1.5 rounded">{info ? `${info.instrumentName}: ${info.activityName}` : 'Inválido'}</span>
+                                                                    })}
                                                                 </div>
                                                             </div>
                                                         ))}

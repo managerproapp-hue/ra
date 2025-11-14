@@ -343,25 +343,31 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
     
     const handleDeleteInstrumento = (instrumentoId: string) => {
-        if (window.confirm('¿Seguro que quieres eliminar este instrumento? También se eliminará de todos los criterios de evaluación asociados.')) {
+        if (window.confirm('¿Seguro que quieres eliminar este instrumento? Todas sus actividades asociadas a criterios serán eliminadas.')) {
+            const instrumentToDelete = instrumentosEvaluacion[instrumentoId];
+            if (!instrumentToDelete) return;
+            const activityIdsToDelete = new Set(instrumentToDelete.activities.map(act => act.id));
+
             setInstrumentosEvaluacion(prev => {
                 const newState = { ...prev };
                 delete newState[instrumentoId];
                 return newState;
             });
+            
             setCriteriosEvaluacion(prev => {
                 const newState = { ...prev };
                 Object.keys(newState).forEach(critId => {
                     const criterio = newState[critId];
                     if (criterio.asociaciones) {
                         criterio.asociaciones.forEach(asoc => {
-                            asoc.instrumentoIds = asoc.instrumentoIds.filter(id => id !== instrumentoId);
+                            asoc.activityIds = (asoc.activityIds || []).filter(id => !activityIdsToDelete.has(id));
                         });
+                        criterio.asociaciones = criterio.asociaciones.filter(asoc => asoc.activityIds.length > 0);
                     }
                 });
                 return newState;
             });
-            addToast('Instrumento eliminado.', 'info');
+            addToast('Instrumento y sus asociaciones eliminados.', 'info');
         }
     };
 

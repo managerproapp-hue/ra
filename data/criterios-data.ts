@@ -13,8 +13,8 @@ export const criteriosEvaluacion: Record<string, CriterioEvaluacion> = {
     ],
     ponderacion: 20,
     asociaciones: [
-        { id: 'asoc-c1-ut1', utId: 'ut1', instrumentoIds: ['practica_diaria', 'servicios'] },
-        { id: 'asoc-c1-ut2', utId: 'ut2', instrumentoIds: ['ex_practico'] }
+        { id: 'asoc-c1-ut1', utId: 'ut1', activityIds: ['act-5', 'act-6'] }, // P. Diaria 1, Servicios 1
+        { id: 'asoc-c1-ut2', utId: 'ut2', activityIds: ['act-7'] } // Ex. Practico 1
     ]
   },
   cocina_002: {

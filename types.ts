@@ -288,7 +288,7 @@ export interface ResultadoAprendizaje {
 export interface AsociacionCriterio {
     id: string;
     utId: string;
-    instrumentoIds: string[];
+    activityIds: string[];
 }
 
 export interface CriterioEvaluacion {
