@@ -97,7 +97,6 @@ const AsociacionesModal: React.FC<AsociacionesModalProps> = ({ isOpen, onClose, 
     if (!isOpen) return null;
 
     const getActivityInfo = (activityId: string) => {
-        // FIX: Cast Object.values to InstrumentoEvaluacion[] to correctly type `inst`.
         for (const inst of Object.values(instrumentosEvaluacion) as InstrumentoEvaluacion[]) {
             const activity = inst.activities.find(act => act.id === activityId);
             if (activity) {
@@ -164,7 +163,6 @@ const AsociacionesModal: React.FC<AsociacionesModalProps> = ({ isOpen, onClose, 
                              <div>
                                 <label className="text-sm font-medium">2. Actividades de Evaluación</label>
                                 <div className="mt-1 space-y-2 max-h-40 overflow-y-auto border p-2 rounded bg-white">
-                                    {/* FIX: Cast Object.values to InstrumentoEvaluacion[] to correctly type `inst`. */}
                                     {(Object.values(instrumentosEvaluacion) as InstrumentoEvaluacion[]).map(inst => (
                                         <div key={inst.id}>
                                             <h5 className="font-semibold text-xs text-gray-500 uppercase tracking-wider">{inst.nombre}</h5>
@@ -236,9 +234,8 @@ const GradeBadge: React.FC<{ grade: number | undefined }> = ({ grade }) => {
 const RAView: React.FC = () => {
     const { 
         students,
-        resultadosAprendizaje, 
-        criteriosEvaluacion, 
-        setCriteriosEvaluacion, 
+        resultadosAprendizaje, setResultadosAprendizaje,
+        criteriosEvaluacion, setCriteriosEvaluacion, 
         addToast, 
         unidadesTrabajo, 
         instrumentosEvaluacion,
@@ -252,108 +249,57 @@ const RAView: React.FC = () => {
         handleDeleteCriterio
     } = useAppContext();
     const [expandedRAs, setExpandedRAs] = useState<Set<string>>(new Set());
-    
+    const [isEditingWeights, setIsEditingWeights] = useState(false);
+    const [localRAs, setLocalRAs] = useState(resultadosAprendizaje);
+    const [localCriterios, setLocalCriterios] = useState(criteriosEvaluacion);
+
     const [formModalState, setFormModalState] = useState<{ isOpen: boolean; type: 'ra' | 'criterio' | null; data: any; parentRaId?: string | null }>({ isOpen: false, type: null, data: null });
     const [asocModalState, setAsocModalState] = useState<{isOpen: boolean; criterio: CriterioEvaluacion | null}>({isOpen: false, criterio: null});
+
+    useEffect(() => {
+        if (!isEditingWeights) {
+            setLocalRAs(resultadosAprendizaje);
+            setLocalCriterios(criteriosEvaluacion);
+        }
+    }, [resultadosAprendizaje, criteriosEvaluacion, isEditingWeights]);
 
     const averageGrades = useMemo(() => {
         const raAverages = new Map<string, number>();
         const criterioAverages = new Map<string, number>();
-
-        if (students.length === 0) {
-            return { raAverages, criterioAverages };
-        }
-
-        // Calculate RA averages
+        if (students.length === 0) return { raAverages, criterioAverages };
+        
         for (const ra of Object.values(resultadosAprendizaje) as ResultadoAprendizaje[]) {
-            const grades: number[] = [];
-            for (const student of students) {
-                const { grade } = calculateRAGrade(ra, student.id, criteriosEvaluacion, academicGrades, calculatedStudentGrades);
-                if (grade !== null) {
-                    grades.push(grade);
-                }
-            }
-            if (grades.length > 0) {
-                const avg = grades.reduce((sum, g) => sum + g, 0) / grades.length;
-                raAverages.set(ra.id, avg);
-            }
+            const grades = students.map(s => calculateRAGrade(ra, s.id, criteriosEvaluacion, academicGrades, calculatedStudentGrades).grade).filter(g => g !== null) as number[];
+            if (grades.length > 0) raAverages.set(ra.id, grades.reduce((s, g) => s + g, 0) / grades.length);
         }
-
-        // Calculate Criterio averages
-        for (const criterio of Object.values(criteriosEvaluacion) as CriterioEvaluacion[]) {
-            const grades: number[] = [];
-            for (const student of students) {
-                const grade = calculateCriterioGrade(criterio, student.id, academicGrades, calculatedStudentGrades);
-                if (grade !== null) {
-                    grades.push(grade);
-                }
-            }
-            if (grades.length > 0) {
-                const avg = grades.reduce((sum, g) => sum + g, 0) / grades.length;
-                criterioAverages.set(criterio.id, avg);
-            }
+        for (const crit of Object.values(criteriosEvaluacion) as CriterioEvaluacion[]) {
+            const grades = students.map(s => calculateCriterioGrade(crit, s.id, academicGrades, calculatedStudentGrades)).filter(g => g !== null) as number[];
+            if (grades.length > 0) criterioAverages.set(crit.id, grades.reduce((s, g) => s + g, 0) / grades.length);
         }
-
         return { raAverages, criterioAverages };
     }, [students, resultadosAprendizaje, criteriosEvaluacion, academicGrades, calculatedStudentGrades]);
-
 
     const activityInfoMap = useMemo(() => {
         const map = new Map<string, { instrumentName: string, activityName: string, trimester: 't1' | 't2' }>();
         for (const inst of Object.values(instrumentosEvaluacion) as InstrumentoEvaluacion[]) {
-            for (const act of inst.activities) {
-                map.set(act.id, { instrumentName: inst.nombre, activityName: act.name, trimester: act.trimester });
-            }
+            for (const act of inst.activities) map.set(act.id, { instrumentName: inst.nombre, activityName: act.name, trimester: act.trimester });
         }
         return map;
     }, [instrumentosEvaluacion]);
 
-    const totalRAPonderacion = useMemo(() => {
-        return (Object.values(resultadosAprendizaje) as ResultadoAprendizaje[])
-            .reduce((sum, ra) => sum + (ra.ponderacion || 0), 0);
-    }, [resultadosAprendizaje]);
-
-    const handleOpenFormModal = (type: 'ra' | 'criterio', data: any, parentRaId: string | null = null) => {
-        setFormModalState({ isOpen: true, type, data, parentRaId });
-    };
-
+    const handleOpenFormModal = (type: 'ra' | 'criterio', data: any, parentRaId: string | null = null) => setFormModalState({ isOpen: true, type, data, parentRaId });
     const handleCloseFormModal = () => setFormModalState({ isOpen: false, type: null, data: null });
     
     const handleSaveFormModal = (data: any) => {
         const { type, parentRaId } = formModalState;
-        
-        if (type === 'ra') {
-            handleSaveRA(data as ResultadoAprendizaje);
-        } else if (type === 'criterio' && parentRaId) {
-            handleSaveCriterio(data as CriterioEvaluacion, parentRaId);
-        }
+        if (type === 'ra') handleSaveRA(data as ResultadoAprendizaje);
+        else if (type === 'criterio' && parentRaId) handleSaveCriterio(data as CriterioEvaluacion, parentRaId);
         handleCloseFormModal();
     };
 
     const handleDelete = (type: 'ra' | 'criterio', id: string, parentRaId?: string | null) => {
-         if (type === 'ra') {
-            const ra = resultadosAprendizaje[id];
-            if (!ra) return;
-            if (window.confirm(`¿Estás seguro de que quieres eliminar el RA "${ra.nombre}"?`)) {
-                 if (window.confirm(`¡ATENCIÓN! Esta acción es irreversible y también eliminará todos sus criterios de evaluación. ¿Confirmas la eliminación?`)) {
-                    handleDeleteRA(id);
-                }
-            }
-        } else if (type === 'criterio' && parentRaId) {
-            const criterio = criteriosEvaluacion[id];
-            if (!criterio) return;
-             if (window.confirm(`¿Estás seguro de que quieres eliminar el criterio "${criterio.descripcion.substring(0, 30)}..."?`)) {
-                handleDeleteCriterio(id, parentRaId);
-            }
-        }
-    };
-
-    const toggleExpand = (raId: string) => {
-        setExpandedRAs(prev => {
-            const newSet = new Set(prev);
-            newSet.has(raId) ? newSet.delete(raId) : newSet.add(raId);
-            return newSet;
-        });
+        if (type === 'ra' && window.confirm(`¿Estás seguro de que quieres eliminar este RA y todos sus criterios?`)) handleDeleteRA(id);
+        else if (type === 'criterio' && parentRaId && window.confirm(`¿Estás seguro de que quieres eliminar este criterio?`)) handleDeleteCriterio(id, parentRaId);
     };
 
     const handleSaveAsociaciones = (criterio: CriterioEvaluacion) => {
@@ -362,51 +308,79 @@ const RAView: React.FC = () => {
         setAsocModalState({isOpen: false, criterio: null});
     };
 
-    const handlePrintRAs = () => {
-        generateRAPlanningPDF(
-            resultadosAprendizaje,
-            criteriosEvaluacion,
-            unidadesTrabajo,
-            instrumentosEvaluacion,
-            teacherData,
-            instituteData
-        );
+    const handlePrintRAs = () => generateRAPlanningPDF(resultadosAprendizaje, criteriosEvaluacion, unidadesTrabajo, instrumentosEvaluacion, teacherData, instituteData);
+    
+    const toggleExpand = (raId: string) => {
+        setExpandedRAs(prev => {
+            const newSet = new Set(prev);
+            newSet.has(raId) ? newSet.delete(raId) : newSet.add(raId);
+            return newSet;
+        });
+    };
+    
+    const handlePonderacionChange = (type: 'ra' | 'criterio', id: string, value: string) => {
+        const numValue = parseInt(value, 10) || 0;
+        if (type === 'ra') setLocalRAs(prev => ({ ...prev, [id]: { ...prev[id], ponderacion: numValue } }));
+        else setLocalCriterios(prev => ({ ...prev, [id]: { ...prev[id], ponderacion: numValue } }));
     };
 
+    const handleSaveWeights = () => {
+        setResultadosAprendizaje(localRAs);
+        setCriteriosEvaluacion(localCriterios);
+        setIsEditingWeights(false);
+        addToast('Ponderaciones guardadas.', 'success');
+    };
+
+    const handleCancelEdit = () => {
+        setLocalRAs(resultadosAprendizaje);
+        setLocalCriterios(criteriosEvaluacion);
+        setIsEditingWeights(false);
+    };
+    
+    const sourceRAs = isEditingWeights ? localRAs : resultadosAprendizaje;
+    const sourceCriterios = isEditingWeights ? localCriterios : criteriosEvaluacion;
+    // FIX: Add type casting to resolve 'unknown' type from Object.values
+    const totalRAPonderacion = useMemo(() => (Object.values(sourceRAs) as ResultadoAprendizaje[]).reduce((sum, ra) => sum + (ra.ponderacion || 0), 0), [sourceRAs]);
     const totalRAColor = totalRAPonderacion === 100 ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800';
 
     return (
         <div>
-            <header className="flex flex-wrap justify-between items-center gap-4 mb-8">
+            <header className="flex flex-wrap justify-between items-center gap-4 mb-4">
                 <div>
                     <h1 className="text-3xl font-bold text-gray-800 flex items-center"><FileTextIcon className="w-8 h-8 mr-3 text-purple-500"/>Resultados de Aprendizaje y Criterios</h1>
                     <p className="text-gray-500 mt-1">Define y gestiona la estructura académica de RAs, criterios y sus asociaciones.</p>
                 </div>
                 <div className="flex items-center space-x-4">
-                    <div className={`px-4 py-2 text-sm font-bold rounded-lg ${totalRAColor}`}>
-                        Suma Total RAs: {totalRAPonderacion}%
-                    </div>
-                    <div className="flex items-center space-x-2">
-                        <button onClick={handlePrintRAs} className="flex items-center bg-gray-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-gray-700 transition">
-                            <PrinterIcon className="w-5 h-5 mr-1" /> Imprimir RAs
-                        </button>
-                        <button onClick={() => handleOpenFormModal('ra', { id: `ra_${Date.now()}`, nombre: '', descripcion: '', ponderacion: 0, competencias: [], criteriosEvaluacion: [] })} className="flex items-center bg-blue-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-blue-600 transition">
-                            <PlusIcon className="w-5 h-5 mr-1" /> Nuevo RA
-                        </button>
-                    </div>
+                    <div className={`px-4 py-2 text-sm font-bold rounded-lg ${totalRAColor}`}>Suma Total RAs: {totalRAPonderacion}%</div>
+                    {isEditingWeights ? (
+                        <div className="flex items-center space-x-2">
+                            <button onClick={handleSaveWeights} className="flex items-center bg-green-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-green-600 transition"><SaveIcon className="w-5 h-5 mr-1" />Guardar</button>
+                            <button onClick={handleCancelEdit} className="flex items-center bg-gray-200 text-gray-800 px-4 py-2 rounded-lg font-semibold hover:bg-gray-300 transition"><XIcon className="w-5 h-5 mr-1" />Cancelar</button>
+                        </div>
+                    ) : (
+                        <div className="flex items-center space-x-2">
+                            <button onClick={handlePrintRAs} className="flex items-center bg-gray-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-gray-700 transition"><PrinterIcon className="w-5 h-5 mr-1" />Imprimir</button>
+                            <button onClick={() => setIsEditingWeights(true)} className="flex items-center bg-yellow-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-yellow-600 transition"><SettingsIcon className="w-5 h-5 mr-1" />Ajustar Ponderaciones</button>
+                            <button onClick={() => handleOpenFormModal('ra', { id: `ra_${Date.now()}`, nombre: '', ponderacion: 0, criteriosEvaluacion: [] })} className="flex items-center bg-blue-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-blue-600 transition"><PlusIcon className="w-5 h-5 mr-1" />Nuevo RA</button>
+                        </div>
+                    )}
                 </div>
             </header>
+
+            <div className="bg-blue-50 border-l-4 border-blue-400 text-blue-800 p-4 rounded-md mb-6 text-sm">
+                <h4 className="font-bold">Lógica de Ponderación:</h4>
+                <ul className="list-disc list-inside ml-4 mt-1">
+                    <li>La <strong>Suma Total de los RAs</strong> debe ser igual al <strong>100%</strong> para cubrir la nota del módulo.</li>
+                    <li>La <strong>Suma de los Criterios</strong> dentro de <strong>CADA RA</strong> debe ser igual al <strong>100%</strong> para repartir el peso de ese RA.</li>
+                </ul>
+            </div>
             
             <div className="space-y-4">
-                {(Object.values(resultadosAprendizaje) as ResultadoAprendizaje[]).sort((a, b) => a.nombre.localeCompare(b.nombre)).map((ra) => {
+                {/* FIX: Add type casting to resolve 'unknown' type from Object.values */}
+                {(Object.values(sourceRAs) as ResultadoAprendizaje[]).sort((a,b) => a.nombre.localeCompare(b.nombre)).map(ra => {
                     const isExpanded = expandedRAs.has(ra.id);
-                    const ponderacionTotalCriterios = (ra.criteriosEvaluacion || []).reduce((sum, critId) => {
-                        const criterio = criteriosEvaluacion[critId];
-                        return sum + (criterio?.ponderacion || 0);
-                    }, 0);
-                    const ponderacionRAAsignada = ra.ponderacion ?? 0;
-                    const ponderacionesCoinciden = ponderacionRAAsignada === ponderacionTotalCriterios;
-                    const ponderacionColor = ponderacionesCoinciden ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800';
+                    const ponderacionTotalCriterios = ra.criteriosEvaluacion.reduce((s, cId) => s + (sourceCriterios[cId]?.ponderacion || 0), 0);
+                    const ponderacionRAColor = ra.ponderacion === ponderacionTotalCriterios ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800';
 
                     return (
                         <div key={ra.id} className="bg-white rounded-lg shadow-sm">
@@ -415,56 +389,43 @@ const RAView: React.FC = () => {
                                 <div className="flex-1 ml-2">
                                     <div className="flex items-center gap-3 flex-wrap">
                                         <h3 className="font-bold">{ra.nombre}</h3>
-                                        <GradeBadge grade={averageGrades.raAverages.get(ra.id)} />
-                                        <span className={`px-2 py-0.5 text-xs font-semibold rounded-full ${ponderacionColor}`}>
-                                            RA: {ponderacionRAAsignada}%
-                                        </span>
-                                        <span className={`px-2 py-0.5 text-xs font-semibold rounded-full ${ponderacionColor}`}>
-                                            Σ Criterios: {ponderacionTotalCriterios}%
-                                        </span>
+                                        {!isEditingWeights && <GradeBadge grade={averageGrades.raAverages.get(ra.id)} />}
+                                        {isEditingWeights ? (
+                                            <input type="number" value={ra.ponderacion} onChange={e => handlePonderacionChange('ra', ra.id, e.target.value)} className="w-20 p-1 text-center border rounded-md"/>
+                                        ) : (
+                                            <span className={`px-2 py-0.5 text-xs font-semibold rounded-full ${ponderacionRAColor}`}>RA: {ra.ponderacion}%</span>
+                                        )}
+                                        <span className={`px-2 py-0.5 text-xs font-semibold rounded-full ${ponderacionRAColor}`}>Σ Criterios: {ponderacionTotalCriterios}%</span>
                                     </div>
                                     <p className="text-sm text-gray-500 mt-1">{ra.descripcion}</p>
                                 </div>
                                 <div className="flex items-center space-x-2">
-                                    <button onClick={() => handleOpenFormModal('ra', ra)} className="p-2 text-gray-500 hover:text-blue-600 hover:bg-gray-100 rounded-full"><PencilIcon className="w-4 h-4"/></button>
-                                    <button onClick={() => handleDelete('ra', ra.id)} className="p-2 text-gray-500 hover:text-red-600 hover:bg-gray-100 rounded-full"><TrashIcon className="w-4 h-4"/></button>
+                                    <button onClick={() => handleOpenFormModal('ra', ra)} className="p-2 text-gray-500 hover:text-blue-600 rounded-full"><PencilIcon className="w-4 h-4"/></button>
+                                    <button onClick={() => handleDelete('ra', ra.id)} className="p-2 text-gray-500 hover:text-red-600 rounded-full"><TrashIcon className="w-4 h-4"/></button>
                                 </div>
                             </div>
                             {isExpanded && (
                                 <div className="border-t p-4 bg-gray-50">
-                                    <div className="flex justify-between items-center mb-2"><h4 className="font-semibold text-sm">Criterios de Evaluación</h4> <button onClick={() => handleOpenFormModal('criterio', { id: `crit_${Date.now()}`, descripcion: '', ponderacion: 0, indicadores: [], asociaciones: [] }, ra.id)} className="text-sm flex items-center text-blue-600"><PlusIcon className="w-4 h-4"/>Añadir Criterio</button></div>
+                                    <div className="flex justify-between items-center mb-2"><h4 className="font-semibold text-sm">Criterios de Evaluación</h4> <button onClick={() => handleOpenFormModal('criterio', { id: `crit_${Date.now()}`, ponderacion: 0, asociaciones: [] }, ra.id)} className="text-sm flex items-center text-blue-600"><PlusIcon className="w-4 h-4"/>Añadir</button></div>
                                     <div className="space-y-2">
-                                        {(ra.criteriosEvaluacion || []).map(critId => {
-                                            const criterio = criteriosEvaluacion[critId];
+                                        {ra.criteriosEvaluacion.map(critId => {
+                                            const criterio = sourceCriterios[critId];
                                             if (!criterio) return null;
-                                            const asociaciones = criterio.asociaciones || [];
                                             return (
                                                 <div key={criterio.id} className="bg-white p-3 rounded-md border">
                                                     <div className="flex justify-between items-start">
                                                         <p className="text-sm font-medium flex-1 pr-4">{criterio.descripcion}</p>
                                                         <div className="flex items-center space-x-2 flex-shrink-0">
-                                                            <GradeBadge grade={averageGrades.criterioAverages.get(criterio.id)} />
-                                                            <span className="text-xs bg-gray-200 text-gray-800 px-2 py-1 rounded-full font-semibold">
-                                                                {criterio.ponderacion}%
-                                                            </span>
-                                                            <button onClick={() => setAsocModalState({isOpen: true, criterio})} className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded hover:bg-blue-200">Asociaciones ({asociaciones.length})</button>
-                                                            <button onClick={() => handleOpenFormModal('criterio', criterio, ra.id)} className="p-1.5 text-gray-500 hover:text-blue-600 hover:bg-gray-50 rounded-full"><PencilIcon className="w-4 h-4"/></button>
-                                                            <button onClick={() => handleDelete('criterio', criterio.id, ra.id)} className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-gray-50 rounded-full"><TrashIcon className="w-4 h-4"/></button>
+                                                            {!isEditingWeights && <GradeBadge grade={averageGrades.criterioAverages.get(criterio.id)} />}
+                                                            {isEditingWeights ? (
+                                                                <input type="number" value={criterio.ponderacion} onChange={e => handlePonderacionChange('criterio', criterio.id, e.target.value)} className="w-20 p-1 text-center border rounded-md"/>
+                                                            ) : (
+                                                                <span className="text-xs bg-gray-200 text-gray-800 px-2 py-1 rounded-full font-semibold">{criterio.ponderacion}%</span>
+                                                            )}
+                                                            <button onClick={() => setAsocModalState({isOpen: true, criterio})} className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded hover:bg-blue-200">Asoc. ({(criterio.asociaciones || []).length})</button>
+                                                            <button onClick={() => handleOpenFormModal('criterio', criterio, ra.id)} className="p-1.5 text-gray-500 hover:text-blue-600 rounded-full"><PencilIcon className="w-4 h-4"/></button>
+                                                            <button onClick={() => handleDelete('criterio', criterio.id, ra.id)} className="p-1.5 text-gray-500 hover:text-red-600 rounded-full"><TrashIcon className="w-4 h-4"/></button>
                                                         </div>
-                                                    </div>
-                                                    <div className="mt-2 pt-2 border-t text-xs">
-                                                        {asociaciones.map(asoc => (
-                                                            <div key={asoc.id} className="flex gap-2 items-center">
-                                                                <span className="font-bold">{unidadesTrabajo[asoc.utId]?.nombre}:</span>
-                                                                <div className="flex flex-wrap gap-1">
-                                                                    {(asoc.activityIds || []).map(id => {
-                                                                        const info = activityInfoMap.get(id);
-                                                                        return <span key={id} className="bg-gray-200 px-1.5 rounded">{info ? `${info.instrumentName}: ${info.activityName}` : 'Inválido'}</span>
-                                                                    })}
-                                                                </div>
-                                                            </div>
-                                                        ))}
-                                                        {asociaciones.length === 0 && <span className="text-gray-400">Sin asociaciones.</span>}
                                                     </div>
                                                 </div>
                                             );
