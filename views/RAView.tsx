@@ -13,16 +13,20 @@ interface FormModalProps {
 }
 
 const FormModal: React.FC<FormModalProps> = ({ isOpen, onClose, onSave, initialData, type }) => {
-    const [formData, setFormData] = useState(() => {
-        const dataForForm = { ...initialData };
-        if (type === 'ra') {
-            dataForForm.competencias = (initialData.competencias || []).join(', ');
+    const [formData, setFormData] = useState<any>({});
+
+    useEffect(() => {
+        if (isOpen && initialData) {
+            const dataForForm = { ...initialData };
+            if (type === 'ra') {
+                dataForForm.competencias = (initialData.competencias || []).join(', ');
+            }
+            if (type === 'criterio') {
+                dataForForm.indicadores = (initialData.indicadores || []).join(', ');
+            }
+            setFormData(dataForForm);
         }
-        if (type === 'criterio') {
-            dataForForm.indicadores = (initialData.indicadores || []).join(', ');
-        }
-        return dataForForm;
-    });
+    }, [isOpen, initialData, type]);
 
     if (!isOpen) return null;
 
@@ -44,7 +48,9 @@ const FormModal: React.FC<FormModalProps> = ({ isOpen, onClose, onSave, initialD
         onSave(dataToSave);
     };
     
-    const title = type === 'ra' ? (initialData.id.startsWith('ra_') ? 'Nuevo RA' : 'Editar RA') : (initialData.id.startsWith('crit_') ? 'Nuevo Criterio' : 'Editar Criterio');
+    const title = type === 'ra' 
+        ? (initialData?.id?.startsWith('ra_') ? 'Nuevo RA' : 'Editar RA') 
+        : (initialData?.id?.startsWith('crit_') ? 'Nuevo Criterio' : 'Editar Criterio');
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={onClose}>
@@ -53,16 +59,16 @@ const FormModal: React.FC<FormModalProps> = ({ isOpen, onClose, onSave, initialD
                 <form onSubmit={handleSubmit} className="space-y-4">
                      {type === 'ra' ? (
                         <>
-                            <input type="text" name="nombre" value={formData.nombre} onChange={handleChange} placeholder="Nombre del RA" required className="w-full p-2 border rounded-md" />
+                            <input type="text" name="nombre" value={formData.nombre || ''} onChange={handleChange} placeholder="Nombre del RA" required className="w-full p-2 border rounded-md" />
                             <input type="number" name="ponderacion" value={formData.ponderacion || ''} onChange={handleChange} placeholder="Ponderación (%)" min="0" max="100" className="w-full p-2 border rounded-md" />
-                            <textarea name="descripcion" value={formData.descripcion} onChange={handleChange} placeholder="Descripción" rows={3} className="w-full p-2 border rounded-md"></textarea>
-                            <textarea name="competencias" value={formData.competencias} onChange={handleChange} placeholder="Competencias (separadas por coma)" rows={2} className="w-full p-2 border rounded-md"></textarea>
+                            <textarea name="descripcion" value={formData.descripcion || ''} onChange={handleChange} placeholder="Descripción" rows={3} className="w-full p-2 border rounded-md"></textarea>
+                            <textarea name="competencias" value={formData.competencias || ''} onChange={handleChange} placeholder="Competencias (separadas por coma)" rows={2} className="w-full p-2 border rounded-md"></textarea>
                         </>
                     ) : (
                          <>
-                            <textarea name="descripcion" value={formData.descripcion} onChange={handleChange} placeholder="Descripción del Criterio" required rows={3} className="w-full p-2 border rounded-md" />
-                            <input type="number" name="ponderacion" value={formData.ponderacion} onChange={handleChange} placeholder="Ponderación en el RA (%)" required min="0" max="100" className="w-full p-2 border rounded-md" />
-                            <textarea name="indicadores" value={formData.indicadores} onChange={handleChange} placeholder="Indicadores (separados por coma)" rows={2} className="w-full p-2 border rounded-md"></textarea>
+                            <textarea name="descripcion" value={formData.descripcion || ''} onChange={handleChange} placeholder="Descripción del Criterio" required rows={3} className="w-full p-2 border rounded-md" />
+                            <input type="number" name="ponderacion" value={formData.ponderacion || ''} onChange={handleChange} placeholder="Ponderación en el RA (%)" required min="0" max="100" className="w-full p-2 border rounded-md" />
+                            <textarea name="indicadores" value={formData.indicadores || ''} onChange={handleChange} placeholder="Indicadores (separados por coma)" rows={2} className="w-full p-2 border rounded-md"></textarea>
                         </>
                     )}
                     <div className="flex justify-end gap-2"><button type="button" onClick={onClose} className="px-4 py-2 bg-gray-200 rounded-md">Cancelar</button><button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-md">Guardar</button></div>
