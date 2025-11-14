@@ -1,5 +1,5 @@
 import React, { useState, useRef, useMemo, useEffect } from 'react';
-import { Student, EntryExitRecord, Service, TimelineEvent, PreServiceDayEvaluation, ResultadoAprendizaje } from '../types';
+import { Student, EntryExitRecord, Service, TimelineEvent, PreServiceDayEvaluation, ResultadoAprendizaje, AcademicGrades, StudentCalculatedGrades, CourseGrades, ServiceEvaluation, TeacherData, InstituteData } from '../types';
 import { 
     PencilIcon,
     CameraIcon,

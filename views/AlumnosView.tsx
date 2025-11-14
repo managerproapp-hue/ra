@@ -10,7 +10,9 @@ import { useAppContext } from '../context/AppContext';
 const AlumnosView: React.FC = () => {
   const { 
       students, setStudents, entryExitRecords, calculatedStudentGrades, 
-      academicGrades, handleFileUpload: contextHandleFileUpload, 
+      academicGrades, courseGrades, services, serviceEvaluations,
+      teacherData, instituteData,
+      handleFileUpload: contextHandleFileUpload, 
       addToast, handleUpdateStudent
   } = useAppContext();
   
