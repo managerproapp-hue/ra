@@ -1,6 +1,5 @@
 import React, { useState, useRef, useMemo, useEffect } from 'react';
-// FIX: Add ResultadoAprendizaje to imports
-import { Student, EntryExitRecord, ServiceEvaluation, Service, TimelineEvent, PreServiceDayEvaluation, ResultadoAprendizaje } from '../types';
+import { Student, EntryExitRecord, Service, TimelineEvent, PreServiceDayEvaluation, ResultadoAprendizaje } from '../types';
 import { 
     PencilIcon,
     CameraIcon,
@@ -19,9 +18,6 @@ import { calculateRAGrade, calculateCriterioGrade } from '../services/academicAn
 interface FichaAlumnoProps {
   student: Student;
   onBack: () => void;
-  entryExitRecords: EntryExitRecord[];
-  serviceEvaluations: ServiceEvaluation[];
-  services: Service[];
   onUpdatePhoto: (studentId: string, photoUrl: string) => void;
   onUpdateStudent: (student: Student) => void;
 }
@@ -47,7 +43,7 @@ const Tab: React.FC<{ label: string; isActive: boolean; onClick: () => void; }> 
 );
 
 
-const FichaAlumno: React.FC<FichaAlumnoProps> = ({ student, onBack, entryExitRecords, serviceEvaluations, services, onUpdatePhoto, onUpdateStudent }) => {
+const FichaAlumno: React.FC<FichaAlumnoProps> = ({ student, onBack, onUpdatePhoto, onUpdateStudent }) => {
   const { 
     teacherData, 
     instituteData,
@@ -56,6 +52,9 @@ const FichaAlumno: React.FC<FichaAlumnoProps> = ({ student, onBack, entryExitRec
     academicGrades: allAcademicGrades,
     calculatedStudentGrades: allCalculatedGrades,
     courseGrades: allCourseGrades,
+    services,
+    serviceEvaluations,
+    entryExitRecords: allEntryExitRecords,
   } = useAppContext();
 
   const [isEditing, setIsEditing] = useState(false);
@@ -67,6 +66,11 @@ const FichaAlumno: React.FC<FichaAlumnoProps> = ({ student, onBack, entryExitRec
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => { setEditedStudent(student) }, [student]);
+
+  const studentEntryExitRecords = useMemo(() => 
+    allEntryExitRecords.filter(r => r.studentId === student.id), 
+    [allEntryExitRecords, student.id]
+  );
 
   const handlePhotoClick = () => fileInputRef.current?.click();
 
@@ -101,7 +105,7 @@ const FichaAlumno: React.FC<FichaAlumnoProps> = ({ student, onBack, entryExitRec
         return new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
     };
 
-    entryExitRecords.forEach(rec => {
+    studentEntryExitRecords.forEach(rec => {
         events.push({
             date: parseDate(rec.date),
             type: 'incidencia',
@@ -128,10 +132,9 @@ const FichaAlumno: React.FC<FichaAlumnoProps> = ({ student, onBack, entryExitRec
     });
 
     return events.sort((a, b) => b.date.getTime() - a.date.getTime());
-  }, [entryExitRecords, serviceEvaluations, services, student.id]);
+  }, [studentEntryExitRecords, serviceEvaluations, services, student.id]);
 
   const raProgress = useMemo(() => {
-    // FIX: Cast Object.values to the correct type to resolve type inference issues.
     return (Object.values(resultadosAprendizaje) as ResultadoAprendizaje[]).map(ra => {
         const { grade } = calculateRAGrade(
             ra, 

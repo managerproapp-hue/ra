@@ -10,8 +10,8 @@ import { useAppContext } from '../context/AppContext';
 const AlumnosView: React.FC = () => {
   const { 
       students, setStudents, entryExitRecords, calculatedStudentGrades, 
-      academicGrades, courseGrades, handleFileUpload: contextHandleFileUpload, 
-      addToast, handleUpdateStudent, serviceEvaluations, services 
+      academicGrades, handleFileUpload: contextHandleFileUpload, 
+      addToast, handleUpdateStudent
   } = useAppContext();
   
   const [searchTerm, setSearchTerm] = useState('');
@@ -72,12 +72,6 @@ const AlumnosView: React.FC = () => {
       return <FichaAlumno 
           student={selectedStudent} 
           onBack={handleBackToList}
-          entryExitRecords={entryExitRecords.filter(r => r.studentId === selectedStudent.id)}
-          calculatedGrades={calculatedStudentGrades[selectedStudent.id]}
-          academicGrades={academicGrades[selectedStudent.id]}
-          courseGrades={courseGrades[selectedStudent.id]}
-          serviceEvaluations={serviceEvaluations}
-          services={services}
           onUpdatePhoto={handleUpdatePhoto}
           onUpdateStudent={handleSaveStudent}
        />;

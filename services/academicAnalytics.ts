@@ -6,8 +6,8 @@ import {
 } from '../types';
 
 /**
- * Obtiene la nota de un alumno para una actividad de evaluación específica.
- * Esta función mapea IDs de actividad a sus correspondientes notas en la estructura de datos.
+ * Gets the grade for a student for a specific evaluation activity.
+ * This function maps activity IDs to their corresponding grades in the data structure.
  */
 const getGradeForActivity = (
     activityId: string,
@@ -18,7 +18,7 @@ const getGradeForActivity = (
     const studentAcademic = academicGrades[studentId];
     const studentCalculated = calculatedGrades[studentId];
 
-    // Mapeo de IDs de actividad a sus orígenes de datos de calificación
+    // Mapping of activity IDs to their grade data sources
     const activityGradeMap: Record<string, () => number | null> = {
         'act-1': () => studentAcademic?.t1?.manualGrades?.examen1 ?? null,
         'act-2': () => studentAcademic?.t1?.manualGrades?.examen2 ?? null,
@@ -28,7 +28,7 @@ const getGradeForActivity = (
         'act-13': () => studentCalculated?.serviceAverages?.t2 ?? null,
         'act-7': () => studentCalculated?.practicalExams?.t1 ?? null,
         'act-14': () => studentCalculated?.practicalExams?.t2 ?? null,
-        // Otras actividades (Fichas, Trabajos, P. Diaria) no tienen origen de datos definido aún
+        // Other activities (Fichas, Trabajos, P. Diaria) do not have a data source defined yet
     };
 
     const gradeFn = activityGradeMap[activityId];
@@ -36,7 +36,7 @@ const getGradeForActivity = (
 };
 
 /**
- * Calcula la nota final para un criterio de evaluación promediando las notas de sus actividades asociadas.
+ * Calculates the final grade for an evaluation criterion by averaging the grades of its associated activities.
  */
 export const calculateCriterioGrade = (
     criterio: CriterioEvaluacion,
@@ -61,13 +61,13 @@ export const calculateCriterioGrade = (
         return null;
     }
 
-    // Promedio simple de todas las actividades vinculadas al criterio
+    // Simple average of all activities linked to the criterion
     const sum = grades.reduce((acc, grade) => acc + grade, 0);
     return sum / grades.length;
 };
 
 /**
- * Calcula la nota ponderada final para un Resultado de Aprendizaje (RA) basándose en las notas de sus criterios.
+ * Calculates the final weighted grade for a Learning Outcome (RA) based on the grades of its criteria.
  */
 export const calculateRAGrade = (
     ra: ResultadoAprendizaje,
@@ -85,7 +85,7 @@ export const calculateRAGrade = (
             const criterioGrade = calculateCriterioGrade(criterio, studentId, academicGrades, calculatedGrades);
             
             if (criterioGrade !== null) {
-                // La nota del criterio ya está sobre 10, se multiplica por su peso porcentual
+                // The criterion's grade is already out of 10, so we multiply by its percentage weight
                 weightedSum += criterioGrade * (criterio.ponderacion / 100);
                 ponderacionTotalEvaluada += criterio.ponderacion;
             }
@@ -96,7 +96,7 @@ export const calculateRAGrade = (
         return { grade: null, ponderacionTotal: 0 };
     }
 
-    // Normalizar la nota final sobre 10
+    // Normalize the final grade to be out of 10
     const finalGrade = (weightedSum / (ponderacionTotalEvaluada / 100));
     return { grade: finalGrade, ponderacionTotal: ponderacionTotalEvaluada };
 };
