@@ -1,24 +1,22 @@
 import React, { useState, useMemo } from 'react';
 import { Student, ResultadoAprendizaje } from '../types';
 import StudentTable from '../components/StudentTable';
-import StudentList from '../components/StudentList';
 import FileUpload from '../components/FileUpload';
 import FichaAlumno from './FichaAlumno'; 
 import AddStudentModal from '../components/AddStudentModal';
-import { SearchIcon, UserPlusIcon, GridIcon, ListIcon } from '../components/icons';
+import { SearchIcon, UserPlusIcon } from '../components/icons';
 import { useAppContext } from '../context/AppContext';
 import { calculateRAGrade } from '../services/academicAnalytics';
 
 const AlumnosView: React.FC = () => {
   const { 
-      students, setStudents, entryExitRecords, calculatedStudentGrades, 
-      academicGrades, courseGrades, services, serviceEvaluations,
+      students, setStudents,
       resultadosAprendizaje, criteriosEvaluacion,
+      academicGrades, calculatedStudentGrades,
       handleFileUpload: contextHandleFileUpload, 
       addToast, handleUpdateStudent
   } = useAppContext();
   
-  const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [loading, setLoading] = useState(false);
@@ -127,22 +125,6 @@ const AlumnosView: React.FC = () => {
             <UserPlusIcon className="w-5 h-5 mr-1" />
             Nuevo Alumno
           </button>
-           <div className="flex items-center bg-gray-100 rounded-lg p-1">
-            <button
-              onClick={() => setViewMode('grid')}
-              className={`p-2 rounded-md transition-colors ${viewMode === 'grid' ? 'bg-white shadow' : 'text-gray-500 hover:bg-white/60'}`}
-              aria-label="Grid View"
-            >
-              <GridIcon className="w-5 h-5" />
-            </button>
-            <button
-              onClick={() => setViewMode('table')}
-              className={`p-2 rounded-md transition-colors ${viewMode === 'table' ? 'bg-white shadow' : 'text-gray-500 hover:bg-white/60'}`}
-              aria-label="Table View"
-            >
-              <ListIcon className="w-5 h-5" />
-            </button>
-          </div>
         </div>
       </div>
       
@@ -164,17 +146,10 @@ const AlumnosView: React.FC = () => {
       )}
 
       {students.length > 0 && filteredStudents.length > 0 && (
-        viewMode === 'grid' ? (
-          <StudentList students={filteredStudents} onViewStudent={handleViewStudent} />
-        ) : (
           <StudentTable 
               students={filteredStudents} 
               onViewStudent={handleViewStudent}
-              academicGrades={academicGrades}
-              calculatedStudentGrades={calculatedStudentGrades}
-              entryExitRecords={entryExitRecords}
           />
-        )
       )}
       <AddStudentModal 
         isOpen={isAddModalOpen}
