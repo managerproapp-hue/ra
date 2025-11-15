@@ -41,12 +41,20 @@ export interface Elaboration {
     responsibleGroupId: string;
 }
 
+export interface Agrupacion {
+    id: string;
+    name: string;
+    studentIds: string[];
+}
+
 export interface Service {
     id: string;
     name: string;
     date: string;
     trimester: 't1' | 't2' | 't3';
     isLocked: boolean;
+    type: 'normal' | 'agrupacion';
+    // For 'normal' type
     assignedGroups: {
         comedor: string[];
         takeaway: string[];
@@ -55,6 +63,8 @@ export interface Service {
         comedor: Elaboration[];
         takeaway: Elaboration[];
     };
+    // For 'agrupacion' type
+    agrupaciones?: Agrupacion[];
     studentRoles: StudentRoleAssignment[];
 }
 

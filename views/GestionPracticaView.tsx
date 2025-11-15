@@ -1,10 +1,183 @@
 import React, { useState, useEffect, useMemo, lazy, Suspense } from 'react';
-import { Service, ServiceEvaluation, Elaboration, Student, PracticeGroup, ServiceRole, TeacherData, InstituteData } from '../types';
-import { PlusIcon, TrashIcon, SaveIcon, ChefHatIcon, LockClosedIcon, LockOpenIcon, FileTextIcon, ChevronDownIcon, ChevronRightIcon } from '../components/icons';
+import { Service, ServiceEvaluation, Elaboration, Student, PracticeGroup, ServiceRole, TeacherData, InstituteData, Agrupacion } from '../types';
+import { PlusIcon, TrashIcon, SaveIcon, ChefHatIcon, LockClosedIcon, LockOpenIcon, FileTextIcon, ChevronDownIcon, ChevronRightIcon, UsersIcon } from '../components/icons';
 import { useAppContext } from '../context/AppContext';
 
 const ServiceEvaluationView = lazy(() => import('./ServiceEvaluationView'));
 const ReportsCenterModal = lazy(() => import('../components/ReportsCenterModal'));
+
+// Modal for assigning students to an agrupacion
+const AsignarAlumnosModal: React.FC<{
+    isOpen: boolean;
+    onClose: () => void;
+    onSave: (studentIds: string[]) => void;
+    allStudents: Student[];
+    initialStudentIds: string[];
+}> = ({ isOpen, onClose, onSave, allStudents, initialStudentIds }) => {
+    const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set(initialStudentIds));
+    const [searchTerm, setSearchTerm] = useState('');
+
+    if (!isOpen) return null;
+
+    const handleToggle = (studentId: string) => {
+        setSelectedIds(prev => {
+            const newSet = new Set(prev);
+            if (newSet.has(studentId)) {
+                newSet.delete(studentId);
+            } else {
+                newSet.add(studentId);
+            }
+            return newSet;
+        });
+    };
+    
+    const filteredStudents = allStudents.filter(s => 
+        `${s.nombre} ${s.apellido1} ${s.apellido2}`.toLowerCase().includes(searchTerm.toLowerCase())
+    ).sort((a,b) => a.apellido1.localeCompare(b.apellido1));
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={onClose}>
+            <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-2xl max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
+                <h3 className="text-xl font-bold mb-4">Asignar Alumnos</h3>
+                <input type="text" placeholder="Buscar alumnos..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full p-2 border rounded mb-4" />
+                <div className="flex-1 overflow-y-auto pr-2 grid grid-cols-1 md:grid-cols-2 gap-2">
+                    {filteredStudents.map(student => (
+                        <label key={student.id} className="flex items-center p-2 rounded-md hover:bg-gray-100 cursor-pointer">
+                            <input type="checkbox" checked={selectedIds.has(student.id)} onChange={() => handleToggle(student.id)} className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                            <img src={student.fotoUrl} alt="" className="w-8 h-8 rounded-full object-cover mx-3" />
+                            <span className="text-sm">{student.apellido1} {student.apellido2}, {student.nombre}</span>
+                        </label>
+                    ))}
+                </div>
+                <div className="flex justify-end gap-2 mt-4 pt-4 border-t">
+                    <button onClick={onClose} className="px-4 py-2 bg-gray-200 rounded-md">Cancelar</button>
+                    <button onClick={() => onSave(Array.from(selectedIds))} className="px-4 py-2 bg-blue-600 text-white rounded-md">Guardar ({selectedIds.size})</button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+// Component for planning agrupaciones
+const PlanificacionAgrupaciones: React.FC<{
+    editedService: Service;
+    setEditedService: React.Dispatch<React.SetStateAction<Service | null>>;
+    isLocked: boolean;
+    students: Student[];
+}> = ({ editedService, setEditedService, isLocked, students }) => {
+    const [newAgrupacionName, setNewAgrupacionName] = useState('');
+    const [modalState, setModalState] = useState<{ isOpen: boolean; agrupacionId: string | null }>({ isOpen: false, agrupacionId: null });
+
+    const handleAddAgrupacion = () => {
+        if (!newAgrupacionName.trim()) return;
+        const newAgrupacion: Agrupacion = {
+            id: `agrup-${Date.now()}`,
+            name: newAgrupacionName.trim(),
+            studentIds: [],
+        };
+        setEditedService(prev => prev ? { ...prev, agrupaciones: [...(prev.agrupaciones || []), newAgrupacion] } : null);
+        setNewAgrupacionName('');
+    };
+
+    const handleUpdateAgrupacion = (id: string, updates: Partial<Agrupacion>) => {
+        setEditedService(prev => {
+            if (!prev) return null;
+            const updatedAgrupaciones = (prev.agrupaciones || []).map(a => a.id === id ? { ...a, ...updates } : a);
+            return { ...prev, agrupaciones: updatedAgrupaciones };
+        });
+    };
+
+    const handleDeleteAgrupacion = (id: string) => {
+        if (window.confirm('¿Seguro que quieres eliminar esta elaboración y sus asignaciones?')) {
+            setEditedService(prev => prev ? { ...prev, agrupaciones: (prev.agrupaciones || []).filter(a => a.id !== id) } : null);
+        }
+    };
+
+    const openModal = (agrupacionId: string) => setModalState({ isOpen: true, agrupacionId });
+    const closeModal = () => setModalState({ isOpen: false, agrupacionId: null });
+
+    const handleSaveModal = (studentIds: string[]) => {
+        if (modalState.agrupacionId) {
+            handleUpdateAgrupacion(modalState.agrupacionId, { studentIds });
+        }
+        closeModal();
+    };
+    
+    const editingAgrupacion = editedService.agrupaciones?.find(a => a.id === modalState.agrupacionId);
+
+    return (
+        <div className="bg-white p-6 rounded-lg shadow-sm">
+            <h3 className="text-xl font-bold mb-4 text-gray-700">Elaboraciones y Agrupaciones</h3>
+            
+            {!isLocked && (
+                <div className="flex gap-2 mb-6 p-4 bg-gray-50 rounded-lg border">
+                    <input
+                        type="text"
+                        value={newAgrupacionName}
+                        onChange={e => setNewAgrupacionName(e.target.value)}
+                        placeholder="Nombre de la nueva elaboración (ej. Entrante frío)"
+                        className="flex-grow p-2 border rounded-md"
+                    />
+                    <button onClick={handleAddAgrupacion} className="bg-blue-600 text-white font-semibold px-4 py-2 rounded-md hover:bg-blue-700 flex items-center">
+                        <PlusIcon className="w-5 h-5 mr-1" /> Añadir
+                    </button>
+                </div>
+            )}
+            
+            <div className="space-y-4">
+                {(editedService.agrupaciones || []).map(agrupacion => {
+                    const assignedStudents = students.filter(s => agrupacion.studentIds.includes(s.id));
+                    return (
+                        <div key={agrupacion.id} className="p-4 border rounded-lg hover:shadow-md transition-shadow">
+                            <div className="flex justify-between items-start mb-3">
+                                <input
+                                    type="text"
+                                    value={agrupacion.name}
+                                    onChange={e => handleUpdateAgrupacion(agrupacion.id, { name: e.target.value })}
+                                    disabled={isLocked}
+                                    className="text-lg font-bold bg-transparent focus:bg-white focus:ring-1 focus:ring-blue-500 rounded-md p-1 -ml-1 disabled:bg-gray-100"
+                                />
+                                {!isLocked && (
+                                    <div className="flex items-center gap-2">
+                                        <button onClick={() => openModal(agrupacion.id)} className="flex items-center text-sm bg-blue-100 text-blue-700 px-3 py-1 rounded-md hover:bg-blue-200">
+                                            <UsersIcon className="w-4 h-4 mr-1" /> Asignar Alumnos ({agrupacion.studentIds.length})
+                                        </button>
+                                        <button onClick={() => handleDeleteAgrupacion(agrupacion.id)} className="p-1 text-gray-400 hover:text-red-600"><TrashIcon className="w-4 h-4"/></button>
+                                    </div>
+                                )}
+                            </div>
+                            
+                            <div className="flex flex-wrap gap-2">
+                                {assignedStudents.length > 0 
+                                    ? assignedStudents.map(s => (
+                                        <div key={s.id} className="flex items-center bg-gray-100 rounded-full px-2 py-1 text-sm" title={`${s.nombre} ${s.apellido1}`}>
+                                            <img src={s.fotoUrl} alt="" className="w-6 h-6 rounded-full object-cover mr-2" />
+                                            <span>{s.apellido1} {s.nombre.charAt(0)}.</span>
+                                        </div>
+                                      ))
+                                    : <p className="text-sm text-gray-500 italic">No hay alumnos asignados a esta elaboración.</p>
+                                }
+                            </div>
+                        </div>
+                    );
+                })}
+                {(editedService.agrupaciones || []).length === 0 && (
+                    <p className="text-center text-gray-500 py-6">No hay elaboraciones. Añade una para empezar a asignar alumnos.</p>
+                )}
+            </div>
+            
+            {modalState.isOpen && editingAgrupacion && (
+                <AsignarAlumnosModal
+                    isOpen={modalState.isOpen}
+                    onClose={closeModal}
+                    onSave={handleSaveModal}
+                    allStudents={students}
+                    initialStudentIds={editingAgrupacion.studentIds}
+                />
+            )}
+        </div>
+    );
+};
 
 interface GestionPracticaViewProps {
     initialServiceId: string | null;
@@ -58,8 +231,8 @@ const GestionPracticaView: React.FC<GestionPracticaViewProps> = ({
         }
     }, [selectedServiceId, services, serviceEvaluations, initialServiceId]);
     
-    const handleCreateService = (trimester: 't1' | 't2' | 't3') => {
-        const newServiceId = contextCreateService(trimester);
+    const handleCreateService = (trimester: 't1' | 't2' | 't3', type: 'normal' | 'agrupacion') => {
+        const newServiceId = contextCreateService(trimester, type);
         setSelectedServiceId(newServiceId);
         setMainTab('planning');
     };
@@ -248,6 +421,14 @@ const GestionPracticaView: React.FC<GestionPracticaViewProps> = ({
                 </div>
 
                 {mainTab === 'planning' && (
+                    editedService.type === 'agrupacion' ? (
+                        <PlanificacionAgrupaciones 
+                            editedService={editedService}
+                            setEditedService={setEditedService}
+                            isLocked={isLocked}
+                            students={students}
+                        />
+                    ) : (
                     <div>
                         <div className="border-b border-gray-200 mb-6">
                             <nav className="flex space-x-2">
@@ -294,6 +475,7 @@ const GestionPracticaView: React.FC<GestionPracticaViewProps> = ({
                             </div>
                         )}
                     </div>
+                    )
                 )}
                  {mainTab === 'evaluation' && (
                     <Suspense fallback={<div className="text-center p-8">Cargando módulo de evaluación...</div>}>
@@ -314,6 +496,7 @@ const GestionPracticaView: React.FC<GestionPracticaViewProps> = ({
 
     const TrimesterSection: React.FC<{ trimester: 't1' | 't2' | 't3', title: string }> = ({ trimester, title }) => {
         const isCollapsed = collapsedTrimesters.has(trimester);
+        const [isAddMenuOpen, setIsAddMenuOpen] = useState(false);
         return (
             <div>
                 <div className="flex justify-between items-center mb-2">
@@ -321,9 +504,26 @@ const GestionPracticaView: React.FC<GestionPracticaViewProps> = ({
                          {isCollapsed ? <ChevronRightIcon className="w-5 h-5 mr-1" /> : <ChevronDownIcon className="w-5 h-5 mr-1" />}
                         {title}
                     </button>
-                    <button onClick={() => handleCreateService(trimester)} className="p-1.5 bg-blue-100 text-blue-600 rounded-full hover:bg-blue-200 transition-transform transform hover:scale-110">
-                        <PlusIcon className="w-4 h-4" />
-                    </button>
+                    <div className="relative">
+                        <button onMouseEnter={() => setIsAddMenuOpen(true)} onClick={() => setIsAddMenuOpen(prev => !prev)} className="p-1.5 bg-blue-100 text-blue-600 rounded-full hover:bg-blue-200 transition-transform transform hover:scale-110">
+                            <PlusIcon className="w-4 h-4" />
+                        </button>
+                        {isAddMenuOpen && (
+                            <div 
+                                className="absolute right-0 mt-2 w-56 bg-white rounded-md shadow-lg z-20 border"
+                                onMouseLeave={() => setIsAddMenuOpen(false)}
+                            >
+                                <a href="#" onClick={(e) => { e.preventDefault(); handleCreateService(trimester, 'normal'); setIsAddMenuOpen(false); }} className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                    <span className="font-semibold">Servicio Normal</span>
+                                    <span className="block text-xs text-gray-500">Basado en grupos de prácticas.</span>
+                                </a>
+                                <a href="#" onClick={(e) => { e.preventDefault(); handleCreateService(trimester, 'agrupacion'); setIsAddMenuOpen(false); }} className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                    <span className="font-semibold">Servicio de Agrupaciones</span>
+                                    <span className="block text-xs text-gray-500">Grupos pequeños por elaboración.</span>
+                                </a>
+                            </div>
+                        )}
+                    </div>
                 </div>
                 {!isCollapsed && (
                     <ul className="space-y-2 pl-2">

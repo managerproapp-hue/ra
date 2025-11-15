@@ -20,7 +20,17 @@ function useLocalStorage<T>(key: string, initialValue: T): [T, React.Dispatch<Re
   const [storedValue, setStoredValue] = useState<T>(() => {
     try {
       const item = window.localStorage.getItem(key);
-      return item ? JSON.parse(item) : initialValue;
+      const parsedItem = item ? JSON.parse(item) : initialValue;
+      
+      // Migration logic for services to add 'type' property
+      if (key === 'services' && Array.isArray(parsedItem)) {
+          return parsedItem.map((s: any) => ({
+              ...s,
+              type: s.type || 'normal'
+          })) as T;
+      }
+
+      return parsedItem;
     } catch (error) {
       console.error(error);
       return initialValue;
@@ -91,7 +101,7 @@ interface AppContextType {
     handleFileUpload: (file: File) => Promise<void>;
     handleUpdateStudent: (student: Student) => void;
 
-    handleCreateService: (trimester: 't1' | 't2' | 't3') => string;
+    handleCreateService: (trimester: 't1' | 't2' | 't3', type: 'normal' | 'agrupacion') => string;
     handleSaveServiceAndEvaluation: (service: Service, evaluation: ServiceEvaluation) => void;
     handleDeleteService: (serviceId: string) => void;
     onDeleteRole: (roleId: string) => void;
@@ -142,7 +152,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const [teacherData, setTeacherData] = useLocalStorage<TeacherData>('teacher-app-data', {
         name: 'Juan Codina Barranco',
         email: 'juan.codina@murciaeduca.es',
-        logo: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIiB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiI+CiAgPHN0eWxlPgogICAgLmpjYi10ZXh0IHsgZm9udDogYm9sZCAxODBweCBzYW5zLXNlcmlmOyBmaWxsOiAjMDA0N0FCOyB9CiAgICAuc2luY2UtdGV4dCB7IGZvbnQ6IDYwcHggc2Fucy1zZXJpZjsgZmlsbDogIzAwMDsgfQogICAgLmNsb3VkLXNoYXBlIHsgZmlsbDogI0QzRDNEMzsgb3BhY2l0eTogMC42OyB9CiAgPC9zdHlsZT4KICA8cGF0aCBjbGFzcz0iY2xvdWQtc2hhcGUiIGQ9Ik00MDMuMywxMzkuN2MtMjEuOC00OS44LTcxLjctODMuNy0xMjguMi04My43Yy00MCwwLTc2LjQsMTUuOC0xMDMuMiw0MS42Yy0xMC40LTUuNS0yMi4xLTguNy0zNC42LTguN2MtNDAuOCwwLTc0LDMzLjItNzQsNzRjMCw1LjcsMC43LDExLjMsMS45LDE2LjZDMjYuNSwxOTEuOSwwLDIzNC4yLDAsMjg0YzAsNTUuMiw0NC44LDEwMCwxMDAsMTAwaDcwLjNjLTE1LjMtMjQuOS0yNC4zLTUzLjctMjQuMy04NWMwLTgwLDY0LjctMTQ1LDE0NS0xNDVjMjIuMSwwLDQzLjIsNSw2Mi4yLDE0LjJjLTUtMjIuNy03LjgtNDYuMy03LjgtNzAuMmMwLTguNiwwLjYtMTcuMSwxLjgtMjUuNUMzNjkuOCwxNTQuNSwzODcuOCwxNDMuNiw0MDMuMywxMzkuN3ogTTQxMiwyODRjMC01NS4yLTQ0LjgtMTAwLTEwMC0xMDBjLTYuOCwwLTEzLjUsMC43LTIwLDJjMzMuMywyMy4zLDU1LDYxLjksNTUsMTA1YzAsMjktOS4xLDU1LjktMjQuNSw3OGg5OS41YzU1LjIsMCwxMDAtNDQuOCwxMDAtMTAwQzUxMiwzMjMuOCw0NzIuNSwyOTEuOSw0MTIsMjg0eiIvPgogIDx0ZXh0IHg9IjI1NiIgeT0iMjcwIiBjbGFzcz0iamNiLXRleHQiIHRleHQtYW5jaG9yPSJtaWRkbGUiPkpDQjwvdGV4dD4KICA8dGV4dCB4PSIyNTYiIHk9IjM0MCIgY2xhc3M9InNpbmNlLXRleHQiIHRleHQtYW5jaG9yPSJtaWRkbGUiPkRFU0RFIDE5OTk8L3RleHQ+Cjwvc3ZnPg=='
+        logo: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIiB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiI+CiAgPHN0eWxlPgogICAgLmpjYi10ZXh0IHsgZm9udDogYm9sZCAxODBweCBzYW5zLXNlcmlmOyBmaWxsOiAjMDA0N0FCOyB9CiAgICAuc2luY2UtdGV4dCB7IGZvbnQ6IDYwcHggc2Fucy1zZXJpZjsgZmlsbDogIzAwMDsgfQogICAgLmNsb3VkLXNoYXBlIHsgZmlsbDogI0QzRDNEMzsgb3BhY2l0eTogMC42OyB9CiAgPC9zdHlsZT4KICA8cGF0aCBjbGFzcz0iY2xvdWQtc2hhcGUiIGQ9Ik00MDMuMywxMzkuN2MtMjEuOC00OS44LTcxLjctODMuNy0xMjguMi04My43Yy00MCwwLTc2LjQsMTUuOC0xMDMuMiw0MS42Yy0xMC40LTUuNS0yMi4xLTguNy0zNC42LTguN2MtNDAuOCwwLTc0LDMzLjItNzQsNzRjMCw1LjcsMC43LDExLjMsMS45LDE2LjZDMjYuNSwxOTEuOSwwLDIzNC4yLDAsMjg0YzAsNTUuMiw0NC44LDEwMCwxMDAsMTAwaDcwLjNjLTE1LjMtMjQuOS0yNC4zLTUzLjctMjQuMy04NWMwLTgwLDY0LjctMTQ1LDE0NS0xNDVjMjIuMSwwLDQzLjIsNSw2Mi4yLDE0LjJjLTUtMjIuNy03LjgtNDYuMy03LjgtNzAuMmMwLTguNiwwLjYtMTcuMSwxLjgtMjUuNUMzNjkuOCwxNTQuNSwzODcuOCwxNDMuNiw0MDMuMywxMzkuN3ogTTQxMiwyODRjMC01NS4yLTQ0LjgtMTAwLTEwMC0xMDBjLTYuOCwwLTEzLjUsMC43LTIwLDJjMzMuMywyMy4zLDU1LDYxLjksNTUsMTA1YzAsMjktOS4xLDU1LjktMjQuNSw3OGg5OS41YzU1LjIsMCwxMDAtNDQuOCwxMDAtMTAwQzUxMiwzMjMuOCw0NzIuNSwyOTEuOSw0MTIsMjg0eiIvPgogIDx0ZXh0IHg9IjI1NiIgeT0iMjcwIiBjbGFzcz0iamNiLXRleHQiIHRleHQtYW5jaGyPSJtaWRkbGUiPkpDQjwvdGV4dD4KICA8dGV4dCB4PSIyNTYiIHk9IjM0MCIgY2xhc3M9InNpbmNlLXRleHQiIHRleHQtYW5jaG9yPSJtaWRkbGUiPkRFU0RFIDE5OTk8L3RleHQ+Cjwvc3ZnPg=='
     });
     const [instituteData, setInstituteData] = useLocalStorage<InstituteData>('institute-app-data', { name: 'CIFP Hostelería y Turismo de Cartagena', address: 'Calle Muralla del Mar, 3, 30202 Cartagena, Murcia', cif: 'Q1234567A', logo: null });
     const [trimesterDates, setTrimesterDates] = useLocalStorage<TrimesterDates>('trimester-dates', defaultTrimesterDates);
@@ -235,11 +245,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         addToast('Ficha del alumno actualizada.', 'success');
     };
 
-    const handleCreateService = (trimester: 't1' | 't2' | 't3') => {
+    const handleCreateService = (trimester: 't1' | 't2' | 't3', type: 'normal' | 'agrupacion' = 'normal') => {
         const newServiceId = `service-${Date.now()}`;
         const newService: Service = {
-            id: newServiceId, name: `Nuevo Servicio ${new Date().toLocaleDateString('es-ES')}`, date: new Date().toISOString().split('T')[0],
-            trimester, isLocked: false, assignedGroups: { comedor: [], takeaway: [] }, elaborations: { comedor: [], takeaway: [] }, studentRoles: []
+            id: newServiceId, 
+            name: type === 'normal' ? `Nuevo Servicio ${new Date().toLocaleDateString('es-ES')}` : `Servicio Agrupaciones ${new Date().toLocaleDateString('es-ES')}`,
+            date: new Date().toISOString().split('T')[0],
+            trimester, 
+            isLocked: false, 
+            type,
+            assignedGroups: { comedor: [], takeaway: [] }, 
+            elaborations: { comedor: [], takeaway: [] },
+            agrupaciones: type === 'agrupacion' ? [] : undefined,
+            studentRoles: []
         };
         const newEvaluation: ServiceEvaluation = { id: `eval-${newServiceId}`, serviceId: newServiceId, preService: {}, serviceDay: { groupScores: {}, individualScores: {} } };
         

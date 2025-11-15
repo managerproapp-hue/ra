@@ -62,6 +62,8 @@ const GestionPractica: React.FC<GestionPracticaProps> = ({
             date: new Date().toISOString().split('T')[0],
             trimester: 't1',
             isLocked: false,
+            // FIX: Add the missing 'type' property to satisfy the Service interface.
+            type: 'normal',
             assignedGroups: { comedor: [], takeaway: [] },
             elaborations: { comedor: [], takeaway: [] },
             studentRoles: [],
