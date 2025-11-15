@@ -285,7 +285,8 @@ const InstrumentosView: React.FC = () => {
                     </thead>
                 </table>
                 <div className="space-y-1">
-                    {Object.values(localInstrumentos).map((inst: InstrumentoEvaluacion) => {
+                    {/* FIX: Cast Object.values to InstrumentoEvaluacion[] to provide type information to TypeScript for mapping. */}
+                    {(Object.values(localInstrumentos) as InstrumentoEvaluacion[]).map((inst) => {
                         const isExpanded = expandedInstrument === inst.id;
                         return (
                             <div key={inst.id} className="border-t">
