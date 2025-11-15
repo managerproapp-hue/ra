@@ -278,7 +278,7 @@ const ServiceEvaluationView: React.FC<ServiceEvaluationViewProps> = ({ service, 
                 id: a.id,
                 name: a.name,
                 studentIds: a.studentIds,
-                elaborations: [{ name: a.name }],
+                elaborations: [], // Empty for agrupacion type to avoid redundancy
             }));
         }
         // 'normal'
