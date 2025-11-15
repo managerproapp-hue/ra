@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect, useMemo, lazy, Suspense } from 'react';
 import { Service, ServiceEvaluation, Elaboration, Student, PracticeGroup, ServiceRole, TeacherData, InstituteData, Agrupacion } from '../types';
 import { PlusIcon, TrashIcon, SaveIcon, ChefHatIcon, LockClosedIcon, LockOpenIcon, FileTextIcon, ChevronDownIcon, ChevronRightIcon, UsersIcon } from '../components/icons';
@@ -44,7 +45,7 @@ const AsignarAlumnosModal: React.FC<{
                 <input type="text" placeholder="Buscar alumnos..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full p-2 border rounded mb-4" />
                 <div className="flex-1 overflow-y-auto pr-2 grid grid-cols-1 md:grid-cols-2 gap-2">
                     {filteredStudents.map(student => {
-                        const isAssignedElsewhere = alreadyAssignedIds.has(student.id);
+                        const isAssignedElsewhere = alreadyAssignedIds.has(student.id) && !selectedIds.has(student.id);
                         return (
                             <label key={student.id} className={`flex items-center p-2 rounded-md hover:bg-gray-100 cursor-pointer ${isAssignedElsewhere ? 'opacity-70' : ''}`}>
                                 <input type="checkbox" checked={selectedIds.has(student.id)} onChange={() => handleToggle(student.id)} className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
@@ -221,6 +222,7 @@ const GestionPracticaView: React.FC<GestionPracticaViewProps> = ({
     const [editedEvaluation, setEditedEvaluation] = useState<ServiceEvaluation | null>(null);
     const [mainTab, setMainTab] = useState<'planning' | 'evaluation'>('planning');
     const [planningSubTab, setPlanningSubTab] = useState('distribucion');
+    const [agrupacionPlanningSubTab, setAgrupacionPlanningSubTab] = useState('elaboraciones');
     const [newElaboration, setNewElaboration] = useState({
         comedor: { name: '', responsibleGroupId: '' },
         takeaway: { name: '', responsibleGroupId: '' }
@@ -245,6 +247,7 @@ const GestionPracticaView: React.FC<GestionPracticaViewProps> = ({
             setEditedEvaluation(evaluation ? JSON.parse(JSON.stringify(evaluation)) : null);
             if (!initialServiceId) setMainTab('planning');
             setPlanningSubTab('distribucion');
+            setAgrupacionPlanningSubTab('elaboraciones');
         } else {
             setEditedService(null);
             setEditedEvaluation(null);
@@ -380,7 +383,7 @@ const GestionPracticaView: React.FC<GestionPracticaViewProps> = ({
     };
 
 
-    if (practiceGroups.length === 0) {
+    if (practiceGroups.length === 0 && students.length > 0) {
         return (
             <div className="text-center p-8 bg-white rounded-lg shadow">
                 <h2 className="text-2xl font-bold text-gray-700">Primero define los grupos de práctica</h2>
@@ -442,12 +445,71 @@ const GestionPracticaView: React.FC<GestionPracticaViewProps> = ({
 
                 {mainTab === 'planning' && (
                     editedService.type === 'agrupacion' ? (
-                        <PlanificacionAgrupaciones 
-                            editedService={editedService}
-                            setEditedService={setEditedService}
-                            isLocked={isLocked}
-                            students={students}
-                        />
+                        <div>
+                            <div className="border-b border-gray-200 mb-6">
+                                <nav className="flex space-x-2">
+                                    <button onClick={() => setAgrupacionPlanningSubTab('elaboraciones')} className={`px-3 py-1.5 text-xs font-medium rounded-md ${agrupacionPlanningSubTab === 'elaboraciones' ? 'bg-gray-200 text-gray-800' : 'text-gray-500 hover:bg-gray-100'}`}>Elaboraciones y Grupos</button>
+                                    <button onClick={() => setAgrupacionPlanningSubTab('puestos')} className={`px-3 py-1.5 text-xs font-medium rounded-md ${agrupacionPlanningSubTab === 'puestos' ? 'bg-gray-200 text-gray-800' : 'text-gray-500 hover:bg-gray-100'}`}>Asignar Puestos</button>
+                                </nav>
+                            </div>
+                            {agrupacionPlanningSubTab === 'elaboraciones' ? (
+                                <PlanificacionAgrupaciones 
+                                    editedService={editedService}
+                                    setEditedService={setEditedService}
+                                    isLocked={isLocked}
+                                    students={students}
+                                />
+                            ) : (
+                                <div className="bg-white p-6 rounded-lg shadow-sm">
+                                    <h3 className="text-xl font-bold mb-4 text-gray-700">Asignación de Puestos por Elaboración</h3>
+                                    <div className="space-y-6">
+                                        {(editedService.agrupaciones || []).map((agrupacion, index) => {
+                                            const studentsInAgrupacion = students
+                                                .filter(s => agrupacion.studentIds.includes(s.id))
+                                                .sort((a, b) => a.apellido1.localeCompare(b.apellido1));
+
+                                            return (
+                                                <div key={agrupacion.id} className="border rounded-lg overflow-hidden">
+                                                    <h4 className="px-4 py-2 bg-gray-50 font-bold text-gray-700 border-b">
+                                                        {index + 1}. {agrupacion.name}
+                                                    </h4>
+                                                    {studentsInAgrupacion.length > 0 ? (
+                                                        <table className="min-w-full text-sm">
+                                                            <thead className="bg-gray-50">
+                                                                <tr>
+                                                                    <th className="px-4 py-2 text-left font-semibold text-gray-600">Alumno</th>
+                                                                    <th className="px-4 py-2 text-left font-semibold text-gray-600">Puesto</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                {studentsInAgrupacion.map(student => (
+                                                                    <tr key={student.id} className="border-t hover:bg-gray-50">
+                                                                        <td className="px-4 py-2 font-medium text-gray-800">{`${student.apellido1} ${student.apellido2}, ${student.nombre}`}</td>
+                                                                        <td className="px-4 py-2">
+                                                                            <select
+                                                                                value={editedService.studentRoles.find(sr => sr.studentId === student.id)?.roleId || ''}
+                                                                                onChange={e => handleStudentRoleChange(student.id, e.target.value || null)}
+                                                                                disabled={isLocked}
+                                                                                className="w-full p-1.5 border-gray-300 rounded-md shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50 disabled:bg-gray-100"
+                                                                            >
+                                                                                <option value="">Sin asignar</option>
+                                                                                {serviceRoles.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+                                                                            </select>
+                                                                        </td>
+                                                                    </tr>
+                                                                ))}
+                                                            </tbody>
+                                                        </table>
+                                                    ) : (
+                                                        <p className="text-sm text-gray-500 px-4 py-3">No hay alumnos asignados a esta elaboración.</p>
+                                                    )}
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
                     ) : (
                     <div>
                         <div className="border-b border-gray-200 mb-6">
