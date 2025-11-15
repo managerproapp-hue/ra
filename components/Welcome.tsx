@@ -11,7 +11,7 @@ const Welcome: React.FC<WelcomeProps> = ({ onStart }) => {
       <div className="max-w-2xl">
         <ChefHatIcon className="mx-auto h-20 w-20 text-blue-500 mb-6" />
         <h1 className="text-4xl md:text-5xl font-extrabold text-gray-800 dark:text-white mb-4">
-          Bienvenido al Gestor de Estudiantes Culinarios
+          Bienvenido al Módulo: Productos Culinarios
         </h1>
         <p className="text-lg text-gray-600 dark:text-gray-300 mb-8">
           Esta aplicación está diseñada para facilitar la gestión de los alumnos del módulo de <span className="font-semibold text-blue-500">Productos Culinarios</span>. Sube un archivo Excel con los datos de tus estudiantes para comenzar.
