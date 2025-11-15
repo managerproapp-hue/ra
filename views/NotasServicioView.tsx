@@ -1,5 +1,5 @@
 import React, { useMemo, useCallback } from 'react';
-import { Student } from '../types';
+import { Student, Service } from '../types';
 import { SERVICE_GRADE_WEIGHTS } from '../data/constants';
 import { ExportIcon } from '../components/icons';
 import { downloadPdfWithTables } from '../components/printUtils';
@@ -29,65 +29,65 @@ const NotasServicioView: React.FC<NotasServicioViewProps> = ({ onNavigateToServi
         });
 
         const getScores = (student: Student) => {
-            const serviceScores: Record<string, { group: number | null, individual: number | null, absent: boolean }> = {};
-            const gradesByTrimester: {
-                t1: { individual: number[], group: number[] },
-                t2: { individual: number[], group: number[] },
-                t3: { individual: number[], group: number[] }
-            } = {
-                t1: { individual: [], group: [] },
-                t2: { individual: [], group: [] },
-                t3: { individual: [], group: [] }
-            };
-            
-            sortedServices.forEach(service => {
-                const evaluation = serviceEvaluations.find(e => e.serviceId === service.id);
-                const individualEval = evaluation?.serviceDay.individualScores[student.id];
+            const servicesByTrimester: Record<'t1' | 't2' | 't3', Service[]> = { t1: [], t2: [], t3: [] };
+            sortedServices.forEach(s => { if(s.trimester) servicesByTrimester[s.trimester].push(s) });
 
-                if (individualEval && individualEval.attendance === false) {
-                    serviceScores[service.id] = { group: null, individual: null, absent: true };
+            const serviceScores: Record<string, { group: number | null, individual: number | null, absent: boolean }> = {};
+            const averages: Record<string, { individual: number | null, group: number | null, final: number | null }> = {};
+
+            (['t1', 't2', 't3'] as const).forEach(trimester => {
+                const servicesInTrimester = servicesByTrimester[trimester];
+                const numServicesInTrimester = servicesInTrimester.length;
+
+                if (numServicesInTrimester === 0) {
+                    averages[trimester] = { individual: null, group: null, final: null };
                     return;
                 }
 
-                let individualGrade: number | null = null;
-                if (individualEval) individualGrade = (individualEval.scores || []).reduce((sum, score) => sum + (score || 0), 0);
-                
-                let groupGrade: number | null = null;
-                const practiceGroup = practiceGroups.find(pg => pg.studentIds.includes(student.id));
-                if (practiceGroup && evaluation) {
-                    const groupEval = evaluation.serviceDay.groupScores[practiceGroup.id];
-                    if (groupEval) groupGrade = (groupEval.scores || []).reduce((sum, score) => sum + (score || 0), 0);
-                }
-                
-                serviceScores[service.id] = { group: groupGrade, individual: individualGrade, absent: false };
-                
-                const trimester = service.trimester;
-                if (trimester) {
-                    if (individualGrade !== null) {
-                        gradesByTrimester[trimester].individual.push(individualGrade);
+                let totalIndividual = 0;
+                let totalGroup = 0;
+
+                servicesInTrimester.forEach(service => {
+                    const evaluation = serviceEvaluations.find(e => e.serviceId === service.id);
+                    const individualEval = evaluation?.serviceDay.individualScores[student.id];
+
+                    let individualGrade = 0;
+                    let groupGrade = 0;
+
+                    if (individualEval && individualEval.attendance === false) {
+                        serviceScores[service.id] = { group: null, individual: null, absent: true };
+                        // Grades remain 0 for the average calculation
+                    } else {
+                        if (individualEval) {
+                            individualGrade = (individualEval.scores || []).reduce((sum, score) => sum + (score || 0), 0);
+                        }
+                        
+                        const practiceGroup = practiceGroups.find(pg => pg.studentIds.includes(student.id));
+                        if (practiceGroup && evaluation) {
+                            const groupEval = evaluation.serviceDay.groupScores[practiceGroup.id];
+                            if (groupEval) {
+                                groupGrade = (groupEval.scores || []).reduce((sum, score) => sum + (score || 0), 0);
+                                if (individualEval?.halveGroupScore) {
+                                    groupGrade /= 2;
+                                }
+                            }
+                        }
+                        serviceScores[service.id] = { group: groupGrade, individual: individualGrade, absent: false };
                     }
-                    if (groupGrade !== null) {
-                        gradesByTrimester[trimester].group.push(groupGrade);
-                    }
-                }
+                    totalIndividual += individualGrade;
+                    totalGroup += groupGrade;
+                });
+
+                const avgIndividual = totalIndividual / numServicesInTrimester;
+                const avgGroup = totalGroup / numServicesInTrimester;
+                const finalAvg = (avgIndividual + avgGroup) / 2;
+
+                averages[trimester] = {
+                    individual: avgIndividual,
+                    group: avgGroup,
+                    final: finalAvg
+                };
             });
-
-            const calculateAverage = (grades: number[]) => grades.length > 0 ? grades.reduce((a, b) => a + b, 0) / grades.length : null;
-
-            const averages = {
-                t1: {
-                    individual: calculateAverage(gradesByTrimester.t1.individual),
-                    group: calculateAverage(gradesByTrimester.t1.group)
-                },
-                t2: {
-                    individual: calculateAverage(gradesByTrimester.t2.individual),
-                    group: calculateAverage(gradesByTrimester.t2.group)
-                },
-                t3: {
-                    individual: calculateAverage(gradesByTrimester.t3.individual),
-                    group: calculateAverage(gradesByTrimester.t3.group)
-                },
-            };
             
             return { serviceScores, averages };
         };
@@ -96,7 +96,7 @@ const NotasServicioView: React.FC<NotasServicioViewProps> = ({ onNavigateToServi
     
     const handleExport = (format: 'pdf' | 'xlsx') => {
         const title = "Resumen de Notas de Servicio";
-        const head = [["Alumno", ...sortedServices.map(s => s.name), "Media Ind T1", "Media Grup T1", "Media Ind T2", "Media Grup T2", "Media Ind T3", "Media Grup T3"]];
+        const head = [["Alumno", ...sortedServices.map(s => s.name), "Media Serv. T1", "Media Serv. T2", "Media Serv. T3"]];
 
         const body = Object.values(studentData.studentGroups).flat().map((student: Student) => {
              const { serviceScores, averages } = studentData.getScores(student);
@@ -106,19 +106,17 @@ const NotasServicioView: React.FC<NotasServicioViewProps> = ({ onNavigateToServi
                  if (!scores) {
                      row.push("-");
                  } else if (scores.absent) {
-                    row.push("AUSENTE");
+                    row.push("AUS");
                 } else {
-                    const indStr = scores.individual?.toFixed(2) ?? '-';
-                    const groupStr = scores.group?.toFixed(2) ?? '-';
-                    row.push(format === 'pdf' ? `I:${indStr}\nG:${groupStr}` : `I: ${indStr} / G: ${groupStr}`);
+                    const indScore = scores.individual ?? 0;
+                    const groupScore = scores.group ?? 0;
+                    const finalServiceScore = (indScore + groupScore) / 2;
+                    row.push(finalServiceScore.toFixed(2));
                 }
             });
-            row.push(averages.t1.individual?.toFixed(2) ?? '-');
-            row.push(averages.t1.group?.toFixed(2) ?? '-');
-            row.push(averages.t2.individual?.toFixed(2) ?? '-');
-            row.push(averages.t2.group?.toFixed(2) ?? '-');
-            row.push(averages.t3.individual?.toFixed(2) ?? '-');
-            row.push(averages.t3.group?.toFixed(2) ?? '-');
+            row.push(averages.t1.final?.toFixed(2) ?? '-');
+            row.push(averages.t2.final?.toFixed(2) ?? '-');
+            row.push(averages.t3.final?.toFixed(2) ?? '-');
             return row;
         });
 
@@ -163,23 +161,16 @@ const NotasServicioView: React.FC<NotasServicioViewProps> = ({ onNavigateToServi
                                         </button>
                                     </th>
                                 ))}
-                                <th colSpan={2} className="p-2 border font-semibold text-gray-600 bg-gray-200">Media T1</th>
-                                <th colSpan={2} className="p-2 border font-semibold text-gray-600 bg-gray-200">Media T2</th>
-                                <th colSpan={2} className="p-2 border font-semibold text-gray-600 bg-gray-200">Media T3</th>
+                                <th rowSpan={2} className="p-2 border font-semibold text-gray-600 bg-gray-200">Media Serv. T1</th>
+                                <th rowSpan={2} className="p-2 border font-semibold text-gray-600 bg-gray-200">Media Serv. T2</th>
+                                <th rowSpan={2} className="p-2 border font-semibold text-gray-600 bg-gray-200">Media Serv. T3</th>
                             </tr>
-                            <tr>
-                                <th className="p-2 border font-semibold text-gray-500 bg-gray-200 text-xs">Ind.</th>
-                                <th className="p-2 border font-semibold text-gray-500 bg-gray-200 text-xs">Grup.</th>
-                                <th className="p-2 border font-semibold text-gray-500 bg-gray-200 text-xs">Ind.</th>
-                                <th className="p-2 border font-semibold text-gray-500 bg-gray-200 text-xs">Grup.</th>
-                                <th className="p-2 border font-semibold text-gray-500 bg-gray-200 text-xs">Ind.</th>
-                                <th className="p-2 border font-semibold text-gray-500 bg-gray-200 text-xs">Grup.</th>
-                            </tr>
+                             <tr></tr>
                         </thead>
                         <tbody>
                             {Object.entries(studentData.studentGroups).map(([groupName, studentsInGroup]: [string, Student[]]) => (
                                 <React.Fragment key={groupName}>
-                                    <tr><td colSpan={sortedServices.length + 7} className="bg-gray-200 font-bold p-1 text-left pl-4">{groupName}</td></tr>
+                                    <tr><td colSpan={sortedServices.length + 4} className="bg-gray-200 font-bold p-1 text-left pl-4">{groupName}</td></tr>
                                     {studentsInGroup.map(student => {
                                         const { serviceScores, averages } = studentData.getScores(student);
                                         return (
@@ -189,7 +180,7 @@ const NotasServicioView: React.FC<NotasServicioViewProps> = ({ onNavigateToServi
                                                 const scores = serviceScores[service.id];
                                                 return (
                                                     <td key={service.id} className="p-1 border">
-                                                        {!scores ? '-' : scores.absent ? <span className="text-red-500 font-semibold">AUSENTE</span> : (
+                                                        {!scores ? '-' : scores.absent ? <span className="text-red-500 font-semibold">AUS</span> : (
                                                             <div>
                                                                 <p>Ind: <span className="font-bold">{scores.individual?.toFixed(2) ?? '-'}</span></p>
                                                                 <p>Grup: <span className="font-bold">{scores.group?.toFixed(2) ?? '-'}</span></p>
@@ -198,12 +189,9 @@ const NotasServicioView: React.FC<NotasServicioViewProps> = ({ onNavigateToServi
                                                     </td>
                                                 );
                                             })}
-                                            <td className={`p-1 border font-bold bg-gray-100 ${averages.t1.individual !== null && averages.t1.individual < 5 ? 'text-red-600' : ''}`}>{averages.t1.individual?.toFixed(2) ?? '-'}</td>
-                                            <td className={`p-1 border font-bold bg-gray-100 ${averages.t1.group !== null && averages.t1.group < 5 ? 'text-red-600' : ''}`}>{averages.t1.group?.toFixed(2) ?? '-'}</td>
-                                            <td className={`p-1 border font-bold bg-gray-100 ${averages.t2.individual !== null && averages.t2.individual < 5 ? 'text-red-600' : ''}`}>{averages.t2.individual?.toFixed(2) ?? '-'}</td>
-                                            <td className={`p-1 border font-bold bg-gray-100 ${averages.t2.group !== null && averages.t2.group < 5 ? 'text-red-600' : ''}`}>{averages.t2.group?.toFixed(2) ?? '-'}</td>
-                                            <td className={`p-1 border font-bold bg-gray-100 ${averages.t3.individual !== null && averages.t3.individual < 5 ? 'text-red-600' : ''}`}>{averages.t3.individual?.toFixed(2) ?? '-'}</td>
-                                            <td className={`p-1 border font-bold bg-gray-100 ${averages.t3.group !== null && averages.t3.group < 5 ? 'text-red-600' : ''}`}>{averages.t3.group?.toFixed(2) ?? '-'}</td>
+                                            <td className={`p-1 border font-bold bg-gray-100 ${averages.t1.final !== null && averages.t1.final < 5 ? 'text-red-600' : ''}`}>{averages.t1.final?.toFixed(2) ?? '-'}</td>
+                                            <td className={`p-1 border font-bold bg-gray-100 ${averages.t2.final !== null && averages.t2.final < 5 ? 'text-red-600' : ''}`}>{averages.t2.final?.toFixed(2) ?? '-'}</td>
+                                            <td className={`p-1 border font-bold bg-gray-100 ${averages.t3.final !== null && averages.t3.final < 5 ? 'text-red-600' : ''}`}>{averages.t3.final?.toFixed(2) ?? '-'}</td>
                                         </tr>
                                     )})}
                                 </React.Fragment>
