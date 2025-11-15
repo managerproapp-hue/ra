@@ -210,22 +210,33 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                     let individualGrade = 0;
                     let groupGrade = 0;
 
-                    // If student attended...
                     if (individualEval && individualEval.attendance !== false) {
                         individualGrade = (individualEval.scores || []).reduce((sum, score) => sum + (score || 0), 0);
                         
-                        const practiceGroup = practiceGroups.find(pg => pg.studentIds.includes(student.id));
-                        if (practiceGroup && evaluation) {
-                            const groupEval = evaluation.serviceDay.groupScores[practiceGroup.id];
-                            if (groupEval) {
-                                groupGrade = (groupEval.scores || []).reduce((sum, score) => sum + (score || 0), 0);
-                                if (individualEval.halveGroupScore) {
-                                    groupGrade /= 2;
+                        if (service.type === 'agrupacion') {
+                            const studentAgrupacion = service.agrupaciones?.find(a => a.studentIds.includes(student.id));
+                            if (studentAgrupacion && evaluation) {
+                                const groupEval = evaluation.serviceDay.groupScores[studentAgrupacion.id];
+                                if (groupEval) {
+                                    groupGrade = (groupEval.scores || []).reduce((sum, score) => sum + (score || 0), 0);
+                                    if (individualEval.halveGroupScore) {
+                                        groupGrade /= 2;
+                                    }
+                                }
+                            }
+                        } else { // 'normal'
+                            const practiceGroup = practiceGroups.find(pg => pg.studentIds.includes(student.id));
+                            if (practiceGroup && evaluation) {
+                                const groupEval = evaluation.serviceDay.groupScores[practiceGroup.id];
+                                if (groupEval) {
+                                    groupGrade = (groupEval.scores || []).reduce((sum, score) => sum + (score || 0), 0);
+                                    if (individualEval.halveGroupScore) {
+                                        groupGrade /= 2;
+                                    }
                                 }
                             }
                         }
                     }
-                    // If absent, grades remain 0, contributing to the sum but lowering the average.
                     
                     totalIndividual += individualGrade;
                     totalGroup += groupGrade;

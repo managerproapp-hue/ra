@@ -21,8 +21,6 @@ const getWeekMonday = (date: Date): Date => {
     return new Date(d.setDate(diff));
 };
 
-// --- Reusable Components for Evaluation Tables ---
-
 const PreServiceIndividualTable: React.FC<{
     studentsInGroup: Student[];
     evaluationData: PreServiceDayEvaluation;
@@ -260,9 +258,6 @@ const ServiceDayIndividualEvaluationTable: React.FC<{
     );
 };
 
-
-// --- Main View Component ---
-
 const ServiceEvaluationView: React.FC<ServiceEvaluationViewProps> = ({ service, evaluation, onEvaluationChange, students, practiceGroups, entryExitRecords, isLocked }) => {
     const [activeTab, setActiveTab] = useState<'pre-service' | 'service-day'>('pre-service');
     const [activePreServiceDate, setActivePreServiceDate] = useState<string | null>(null);
@@ -277,9 +272,25 @@ const ServiceEvaluationView: React.FC<ServiceEvaluationViewProps> = ({ service, 
         }
     }, [preServiceDates, activePreServiceDate]);
 
-    const participatingGroups = useMemo(() => {
+    const participatingUnits = useMemo(() => {
+        if (service.type === 'agrupacion') {
+            return (service.agrupaciones || []).map(a => ({
+                id: a.id,
+                name: a.name,
+                studentIds: a.studentIds,
+                elaborations: [{ name: a.name }],
+            }));
+        }
+        // 'normal'
         const groupIds = new Set([...service.assignedGroups.comedor, ...service.assignedGroups.takeaway]);
-        return practiceGroups.filter(pg => groupIds.has(pg.id));
+        return practiceGroups
+            .filter(pg => groupIds.has(pg.id))
+            .map(pg => ({
+                id: pg.id,
+                name: pg.name,
+                studentIds: pg.studentIds,
+                elaborations: [...service.elaborations.comedor, ...service.elaborations.takeaway].filter(e => e.responsibleGroupId === pg.id),
+            }));
     }, [service, practiceGroups]);
 
     const entryExitRecordsForWeek = useMemo(() => {
@@ -301,7 +312,6 @@ const ServiceEvaluationView: React.FC<ServiceEvaluationViewProps> = ({ service, 
             acc[rec.studentId].push(rec);
             return acc;
         }, {} as Record<string, EntryExitRecord[]>);
-
     }, [service.date, entryExitRecords]);
 
     const deepCloneAndUpdate = useCallback((updateFn: (draft: ServiceEvaluation) => void) => {
@@ -356,12 +366,12 @@ const ServiceEvaluationView: React.FC<ServiceEvaluationViewProps> = ({ service, 
         });
     };
 
-    const handlePreServiceGroupObservationChange = (date: string, groupId: string, value: string) => {
+    const handlePreServiceGroupObservationChange = (date: string, unitId: string, value: string) => {
         deepCloneAndUpdate(draft => {
             if (!draft.preService[date].groupObservations) {
                 draft.preService[date].groupObservations = {};
             }
-            draft.preService[date].groupObservations[groupId] = value;
+            draft.preService[date].groupObservations[unitId] = value;
         });
     };
     
@@ -386,9 +396,7 @@ const ServiceEvaluationView: React.FC<ServiceEvaluationViewProps> = ({ service, 
                     halveGroupScore: false,
                 };
             }
-            
             Object.assign(draft.serviceDay.individualScores[studentId], updates);
-
             if (updates.attendance === false) {
                 draft.serviceDay.individualScores[studentId].scores = Array(INDIVIDUAL_EVALUATION_ITEMS.length).fill(null);
             }
@@ -406,6 +414,8 @@ const ServiceEvaluationView: React.FC<ServiceEvaluationViewProps> = ({ service, 
             updateFn(Math.min(numericValue, max));
         }
     };
+
+    const groupTitle = service.type === 'agrupacion' ? 'Agrupación' : 'Grupo';
 
     return (
         <div className="space-y-6">
@@ -438,61 +448,26 @@ const ServiceEvaluationView: React.FC<ServiceEvaluationViewProps> = ({ service, 
                             <div className="flex justify-between items-center mb-4">
                                 <div>
                                     <label htmlFor="pre-service-name" className="block text-sm font-medium text-gray-700">Nombre del Evento</label>
-                                    <input
-                                        id="pre-service-name"
-                                        type="text"
-                                        value={evaluation.preService[activePreServiceDate]?.name || ''}
-                                        onChange={handlePreServiceNameChange}
-                                        className="mt-1 block w-full md:w-96 p-2 border border-gray-300 rounded-md shadow-sm disabled:bg-gray-100"
-                                        placeholder="E.g., Pre-Servicio Semana 3"
-                                        disabled={isLocked}
-                                    />
+                                    <input id="pre-service-name" type="text" value={evaluation.preService[activePreServiceDate]?.name || ''} onChange={handlePreServiceNameChange} className="mt-1 block w-full md:w-96 p-2 border border-gray-300 rounded-md shadow-sm disabled:bg-gray-100" placeholder="E.g., Pre-Servicio Semana 3" disabled={isLocked} />
                                 </div>
-                                <button onClick={() => handleDeletePreServiceDay(activePreServiceDate)} disabled={isLocked} className="text-sm text-red-600 hover:text-red-800 flex items-center disabled:opacity-50 disabled:cursor-not-allowed">
-                                    <TrashIcon className="w-4 h-4 mr-1"/>
-                                    Eliminar este día
-                                </button>
+                                <button onClick={() => handleDeletePreServiceDay(activePreServiceDate)} disabled={isLocked} className="text-sm text-red-600 hover:text-red-800 flex items-center disabled:opacity-50 disabled:cursor-not-allowed"><TrashIcon className="w-4 h-4 mr-1"/>Eliminar este día</button>
                             </div>
                         </div>
                      )}
 
-                    {activePreServiceDate && evaluation.preService[activePreServiceDate] && participatingGroups.map(group => {
-                        const groupStudents = students.filter(s => group.studentIds.includes(s.id)).sort((a, b) => a.apellido1.localeCompare(b.apellido1));
-                        const assignedElaborations = [...service.elaborations.comedor, ...service.elaborations.takeaway].filter(e => e.responsibleGroupId === group.id);
-
+                    {activePreServiceDate && evaluation.preService[activePreServiceDate] && participatingUnits.map(unit => {
+                        const unitStudents = students.filter(s => unit.studentIds.includes(s.id)).sort((a, b) => a.apellido1.localeCompare(b.apellido1));
                         return (
-                            <div key={group.id} className="bg-white p-4 rounded-lg shadow-sm">
-                                <h3 className="text-xl font-bold mb-3 text-gray-700">{group.name}</h3>
-                                
-                                {assignedElaborations.length > 0 && (
-                                    <div className="mb-4 p-3 bg-gray-50 rounded-md">
-                                        <h4 className="text-sm font-semibold text-gray-600 mb-1">Elaboraciones Asignadas:</h4>
-                                        <ul className="list-disc list-inside text-sm text-gray-800">
-                                            {assignedElaborations.map(e => <li key={e.id}>{e.name}</li>)}
-                                        </ul>
-                                    </div>
+                            <div key={unit.id} className="bg-white p-4 rounded-lg shadow-sm">
+                                <h3 className="text-xl font-bold mb-3 text-gray-700">{unit.name}</h3>
+                                {unit.elaborations.length > 0 && (
+                                    <div className="mb-4 p-3 bg-gray-50 rounded-md"><h4 className="text-sm font-semibold text-gray-600 mb-1">Elaboraciones Asignadas:</h4><ul className="list-disc list-inside text-sm text-gray-800">{unit.elaborations.map(e => <li key={e.name}>{e.name}</li>)}</ul></div>
                                 )}
-                                
                                 <div className="mb-4">
-                                    <label htmlFor={`group-obs-${group.id}`} className="block text-sm font-semibold text-gray-600 mb-1">Observaciones del Grupo</label>
-                                    <textarea
-                                        id={`group-obs-${group.id}`}
-                                        value={evaluation.preService[activePreServiceDate]?.groupObservations[group.id] || ''}
-                                        onChange={(e) => handlePreServiceGroupObservationChange(activePreServiceDate, group.id, e.target.value)}
-                                        disabled={isLocked}
-                                        rows={3}
-                                        className="w-full p-2 text-sm border rounded-md bg-white disabled:bg-gray-100"
-                                        placeholder="Anotaciones sobre el comportamiento, limpieza, organización, etc. del grupo en general."
-                                    />
+                                    <label htmlFor={`group-obs-${unit.id}`} className="block text-sm font-semibold text-gray-600 mb-1">Observaciones del {groupTitle}</label>
+                                    <textarea id={`group-obs-${unit.id}`} value={evaluation.preService[activePreServiceDate]?.groupObservations[unit.id] || ''} onChange={(e) => handlePreServiceGroupObservationChange(activePreServiceDate, unit.id, e.target.value)} disabled={isLocked} rows={3} className="w-full p-2 text-sm border rounded-md bg-white disabled:bg-gray-100" placeholder={`Anotaciones sobre el ${groupTitle.toLowerCase()} en general.`} />
                                 </div>
-                                
-                                <PreServiceIndividualTable 
-                                    studentsInGroup={groupStudents}
-                                    evaluationData={evaluation.preService[activePreServiceDate]}
-                                    entryExitRecordsForWeek={entryExitRecordsForWeek}
-                                    onUpdate={(studentId, field, value, behaviorItemId) => handlePreServiceIndividualUpdate(activePreServiceDate, studentId, field, value, behaviorItemId)}
-                                    isLocked={isLocked}
-                                />
+                                <PreServiceIndividualTable studentsInGroup={unitStudents} evaluationData={evaluation.preService[activePreServiceDate]} entryExitRecordsForWeek={entryExitRecordsForWeek} onUpdate={(studentId, field, value, behaviorItemId) => handlePreServiceIndividualUpdate(activePreServiceDate, studentId, field, value, behaviorItemId)} isLocked={isLocked}/>
                             </div>
                         )
                     })}
@@ -502,41 +477,34 @@ const ServiceEvaluationView: React.FC<ServiceEvaluationViewProps> = ({ service, 
             {activeTab === 'service-day' && (
                  <div className="space-y-8">
                     <div className="bg-white p-4 rounded-lg shadow-sm overflow-x-auto">
-                         <h3 className="text-xl font-bold mb-3 text-gray-700">Evaluación Grupal</h3>
+                         <h3 className="text-xl font-bold mb-3 text-gray-700">Evaluación de {service.type === 'agrupacion' ? 'Agrupaciones' : 'Grupos'}</h3>
                          <table className="min-w-full text-sm border-collapse">
                              <thead className="bg-gray-100">
                                  <tr >
                                      <th className="p-2 border font-semibold text-left">Criterio</th>
-                                     {participatingGroups.map(g => <th key={g.id} className="p-2 border font-semibold">{g.name}</th>)}
+                                     {participatingUnits.map(g => <th key={g.id} className="p-2 border font-semibold">{g.name}</th>)}
                                  </tr>
                              </thead>
                              <tbody>
-                                <tr>
-                                    <td className="p-2 border text-left font-medium bg-gray-50">Elaboraciones Asignadas</td>
-                                    {participatingGroups.map(pg => (
-                                        <td key={pg.id} className="p-2 border align-top text-left">
-                                            <ul className="list-disc list-inside">
-                                                {[...service.elaborations.comedor, ...service.elaborations.takeaway]
-                                                    .filter(e => e.responsibleGroupId === pg.id)
-                                                    .map(e => <li key={e.id}>{e.name}</li>)
-                                                }
-                                            </ul>
-                                        </td>
-                                    ))}
-                                </tr>
+                                {service.type === 'normal' && (
+                                    <tr>
+                                        <td className="p-2 border text-left font-medium bg-gray-50">Elaboraciones Asignadas</td>
+                                        {participatingUnits.map(pg => (<td key={pg.id} className="p-2 border align-top text-left"><ul className="list-disc list-inside">{pg.elaborations.map(e => <li key={e.name}>{e.name}</li>)}</ul></td>))}
+                                    </tr>
+                                )}
                                  {GROUP_EVALUATION_ITEMS.map((item, itemIndex) => (
                                      <tr key={item.id}>
                                          <td className="p-2 border text-left">{item.label}</td>
-                                         {participatingGroups.map(group => {
-                                             const groupEval = evaluation.serviceDay.groupScores[group.id];
+                                         {participatingUnits.map(unit => {
+                                             const unitEval = evaluation.serviceDay.groupScores[unit.id];
                                              return (
-                                             <td key={group.id} className="p-1 border align-middle">
+                                             <td key={unit.id} className="p-1 border align-middle">
                                                  <input type="number" step="0.1" min="0" max={item.maxScore}
-                                                     value={groupEval?.scores[itemIndex] ?? ''}
+                                                     value={unitEval?.scores[itemIndex] ?? ''}
                                                      onChange={e => handleNumericInputChange(e, item.maxScore, (value) => {
                                                          deepCloneAndUpdate(draft => {
-                                                            if (!draft.serviceDay.groupScores[group.id]) draft.serviceDay.groupScores[group.id] = { scores: Array(GROUP_EVALUATION_ITEMS.length).fill(null), observations: ''};
-                                                            draft.serviceDay.groupScores[group.id].scores[itemIndex] = value;
+                                                            if (!draft.serviceDay.groupScores[unit.id]) draft.serviceDay.groupScores[unit.id] = { scores: Array(GROUP_EVALUATION_ITEMS.length).fill(null), observations: ''};
+                                                            draft.serviceDay.groupScores[unit.id].scores[itemIndex] = value;
                                                          })
                                                      })}
                                                      placeholder={`max: ${item.maxScore.toFixed(2)}`}
@@ -551,24 +519,24 @@ const ServiceEvaluationView: React.FC<ServiceEvaluationViewProps> = ({ service, 
                              <tfoot>
                                  <tr className="bg-gray-100 font-bold">
                                      <td className="p-2 border text-left">TOTAL</td>
-                                     {participatingGroups.map(group => {
-                                         const scores = evaluation.serviceDay.groupScores[group.id]?.scores.filter(s => s !== null) as number[] || [];
+                                     {participatingUnits.map(unit => {
+                                         const scores = evaluation.serviceDay.groupScores[unit.id]?.scores.filter(s => s !== null) as number[] || [];
                                          const total = scores.reduce((a, b) => a + b, 0);
-                                         return <td key={group.id} className="p-2 border text-center">{total.toFixed(2)} / {GROUP_EVALUATION_ITEMS.reduce((acc, item) => acc + item.maxScore, 0).toFixed(2)}</td>
+                                         return <td key={unit.id} className="p-2 border text-center">{total.toFixed(2)} / {GROUP_EVALUATION_ITEMS.reduce((acc, item) => acc + item.maxScore, 0).toFixed(2)}</td>
                                      })}
                                  </tr>
                                  <tr>
                                     <td className="p-2 border text-left font-medium">Observaciones</td>
-                                    {participatingGroups.map(group => (
-                                        <td key={group.id} className="p-1 border">
+                                    {participatingUnits.map(unit => (
+                                        <td key={unit.id} className="p-1 border">
                                             <textarea
-                                                value={evaluation.serviceDay.groupScores[group.id]?.observations || ''}
+                                                value={evaluation.serviceDay.groupScores[unit.id]?.observations || ''}
                                                 onChange={e => {
                                                     deepCloneAndUpdate(draft => {
-                                                        if (!draft.serviceDay.groupScores[group.id]) {
-                                                            draft.serviceDay.groupScores[group.id] = { scores: Array(GROUP_EVALUATION_ITEMS.length).fill(null), observations: '' };
+                                                        if (!draft.serviceDay.groupScores[unit.id]) {
+                                                            draft.serviceDay.groupScores[unit.id] = { scores: Array(GROUP_EVALUATION_ITEMS.length).fill(null), observations: '' };
                                                         }
-                                                        draft.serviceDay.groupScores[group.id].observations = e.target.value;
+                                                        draft.serviceDay.groupScores[unit.id].observations = e.target.value;
                                                     });
                                                 }}
                                                 className="w-full h-20 p-1 rounded-md border-gray-200 resize-none disabled:bg-gray-100"
@@ -582,28 +550,15 @@ const ServiceEvaluationView: React.FC<ServiceEvaluationViewProps> = ({ service, 
                          </table>
                     </div>
 
-                    {participatingGroups.map(group => {
-                         const groupStudents = students.filter(s => group.studentIds.includes(s.id)).sort((a, b) => a.apellido1.localeCompare(b.apellido1));
-                         const assignedElaborations = [...service.elaborations.comedor, ...service.elaborations.takeaway].filter(e => e.responsibleGroupId === group.id);
+                    {participatingUnits.map(unit => {
+                         const unitStudents = students.filter(s => unit.studentIds.includes(s.id)).sort((a, b) => a.apellido1.localeCompare(b.apellido1));
                          return (
-                            <div key={group.id} className="bg-white p-4 rounded-lg shadow-sm">
-                                <h3 className="text-xl font-bold mb-3 text-gray-700">Evaluación Individual - {group.name}</h3>
-                                {assignedElaborations.length > 0 && (
-                                    <div className="mb-4 p-3 bg-gray-50 rounded-md">
-                                        <h4 className="text-sm font-semibold text-gray-600 mb-1">Elaboraciones Asignadas:</h4>
-                                        <ul className="list-disc list-inside text-sm text-gray-800">
-                                            {assignedElaborations.map(e => <li key={e.id}>{e.name}</li>)}
-                                        </ul>
-                                    </div>
+                            <div key={unit.id} className="bg-white p-4 rounded-lg shadow-sm">
+                                <h3 className="text-xl font-bold mb-3 text-gray-700">Evaluación Individual - {unit.name}</h3>
+                                {unit.elaborations.length > 0 && (
+                                    <div className="mb-4 p-3 bg-gray-50 rounded-md"><h4 className="text-sm font-semibold text-gray-600 mb-1">Elaboraciones Asignadas:</h4><ul className="list-disc list-inside text-sm text-gray-800">{unit.elaborations.map(e => <li key={e.name}>{e.name}</li>)}</ul></div>
                                 )}
-                                <ServiceDayIndividualEvaluationTable
-                                    studentsInGroup={groupStudents}
-                                    evaluationData={evaluation.serviceDay.individualScores}
-                                    onUpdate={handleServiceDayIndividualUpdate}
-                                    handleNumericInputChange={handleNumericInputChange}
-                                    entryExitRecordsForWeek={entryExitRecordsForWeek}
-                                    isLocked={isLocked}
-                                />
+                                <ServiceDayIndividualEvaluationTable studentsInGroup={unitStudents} evaluationData={evaluation.serviceDay.individualScores} onUpdate={handleServiceDayIndividualUpdate} handleNumericInputChange={handleNumericInputChange} entryExitRecordsForWeek={entryExitRecordsForWeek} isLocked={isLocked} />
                             </div>
                          )
                     })}

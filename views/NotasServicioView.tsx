@@ -55,25 +55,32 @@ const NotasServicioView: React.FC<NotasServicioViewProps> = ({ onNavigateToServi
                     let groupGrade = 0;
 
                     if (individualEval && individualEval.attendance === false) {
-                        serviceScores[service.id] = { group: null, individual: null, absent: true };
-                        // Grades remain 0 for the average calculation
-                    } else {
-                        if (individualEval) {
-                            individualGrade = (individualEval.scores || []).reduce((sum, score) => sum + (score || 0), 0);
-                        }
+                        serviceScores[service.id] = { group: 0, individual: 0, absent: true };
+                    } else if (individualEval) {
+                        individualGrade = (individualEval.scores || []).reduce((sum, score) => sum + (score || 0), 0);
                         
-                        const practiceGroup = practiceGroups.find(pg => pg.studentIds.includes(student.id));
-                        if (practiceGroup && evaluation) {
-                            const groupEval = evaluation.serviceDay.groupScores[practiceGroup.id];
-                            if (groupEval) {
-                                groupGrade = (groupEval.scores || []).reduce((sum, score) => sum + (score || 0), 0);
-                                if (individualEval?.halveGroupScore) {
-                                    groupGrade /= 2;
+                        if (service.type === 'agrupacion') {
+                            const studentAgrupacion = service.agrupaciones?.find(a => a.studentIds.includes(student.id));
+                            if (studentAgrupacion && evaluation) {
+                                const groupEval = evaluation.serviceDay.groupScores[studentAgrupacion.id];
+                                if (groupEval) {
+                                    groupGrade = (groupEval.scores || []).reduce((sum, score) => sum + (score || 0), 0);
+                                    if (individualEval.halveGroupScore) groupGrade /= 2;
+                                }
+                            }
+                        } else { // 'normal'
+                            const practiceGroup = practiceGroups.find(pg => pg.studentIds.includes(student.id));
+                            if (practiceGroup && evaluation) {
+                                const groupEval = evaluation.serviceDay.groupScores[practiceGroup.id];
+                                if (groupEval) {
+                                    groupGrade = (groupEval.scores || []).reduce((sum, score) => sum + (score || 0), 0);
+                                    if (individualEval.halveGroupScore) groupGrade /= 2;
                                 }
                             }
                         }
                         serviceScores[service.id] = { group: groupGrade, individual: individualGrade, absent: false };
                     }
+
                     totalIndividual += individualGrade;
                     totalGroup += groupGrade;
                 });
@@ -178,14 +185,10 @@ const NotasServicioView: React.FC<NotasServicioViewProps> = ({ onNavigateToServi
                                             <td className="p-1 border text-left font-semibold text-gray-800 w-48 sticky left-0 bg-white group-hover:bg-gray-50">{`${student.apellido1} ${student.apellido2}, ${student.nombre}`}</td>
                                             {sortedServices.map(service => {
                                                 const scores = serviceScores[service.id];
+                                                const finalScore = scores && !scores.absent ? ((scores.individual ?? 0) + (scores.group ?? 0)) / 2 : null;
                                                 return (
-                                                    <td key={service.id} className="p-1 border">
-                                                        {!scores ? '-' : scores.absent ? <span className="text-red-500 font-semibold">AUS</span> : (
-                                                            <div>
-                                                                <p>Ind: <span className="font-bold">{scores.individual?.toFixed(2) ?? '-'}</span></p>
-                                                                <p>Grup: <span className="font-bold">{scores.group?.toFixed(2) ?? '-'}</span></p>
-                                                            </div>
-                                                        )}
+                                                    <td key={service.id} className={`p-1 border font-bold ${finalScore !== null && finalScore < 5 ? 'text-red-500' : ''}`}>
+                                                        {!scores ? '-' : scores.absent ? <span className="text-red-500 font-semibold">AUS</span> : finalScore?.toFixed(2) }
                                                     </td>
                                                 );
                                             })}
