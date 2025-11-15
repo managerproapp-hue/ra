@@ -78,7 +78,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
     return (
         <div>
             <div className="mb-8">
-                <h1 className="text-3xl font-bold text-gray-800">Bienvenido a TeacherDash</h1>
+                <h1 className="text-3xl font-bold text-gray-800">Bienvenido, {teacherData.name.split(' ')[0]}</h1>
                 <p className="text-gray-500 mt-1">Aquí tienes un resumen rápido de tu espacio de trabajo.</p>
             </div>
 

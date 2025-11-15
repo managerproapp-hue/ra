@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo, lazy, Suspense } from 'react';
 import { Service, ServiceEvaluation, Elaboration, Student, PracticeGroup, ServiceRole, TeacherData, InstituteData, Agrupacion } from '../types';
 import { PlusIcon, TrashIcon, SaveIcon, ChefHatIcon, LockClosedIcon, LockOpenIcon, FileTextIcon, ChevronDownIcon, ChevronRightIcon, UsersIcon } from '../components/icons';
@@ -125,18 +126,21 @@ const PlanificacionAgrupaciones: React.FC<{
             )}
             
             <div className="space-y-4">
-                {(editedService.agrupaciones || []).map(agrupacion => {
+                {(editedService.agrupaciones || []).map((agrupacion, index) => {
                     const assignedStudents = students.filter(s => agrupacion.studentIds.includes(s.id));
                     return (
                         <div key={agrupacion.id} className="p-4 border rounded-lg hover:shadow-md transition-shadow">
                             <div className="flex justify-between items-start mb-3">
-                                <input
-                                    type="text"
-                                    value={agrupacion.name}
-                                    onChange={e => handleUpdateAgrupacion(agrupacion.id, { name: e.target.value })}
-                                    disabled={isLocked}
-                                    className="text-lg font-bold bg-transparent focus:bg-white focus:ring-1 focus:ring-blue-500 rounded-md p-1 -ml-1 disabled:bg-gray-100"
-                                />
+                                 <div className="flex items-center">
+                                    <span className="font-bold text-gray-500 mr-2">{index + 1}.</span>
+                                    <input
+                                        type="text"
+                                        value={agrupacion.name}
+                                        onChange={e => handleUpdateAgrupacion(agrupacion.id, { name: e.target.value })}
+                                        disabled={isLocked}
+                                        className="text-lg font-bold bg-transparent focus:bg-white focus:ring-1 focus:ring-blue-500 rounded-md p-1 -ml-1 disabled:bg-gray-100"
+                                    />
+                                </div>
                                 {!isLocked && (
                                     <div className="flex items-center gap-2">
                                         <button onClick={() => openModal(agrupacion.id)} className="flex items-center text-sm bg-blue-100 text-blue-700 px-3 py-1 rounded-md hover:bg-blue-200">
@@ -514,12 +518,22 @@ const GestionPracticaView: React.FC<GestionPracticaViewProps> = ({
                                 onMouseLeave={() => setIsAddMenuOpen(false)}
                             >
                                 <a href="#" onClick={(e) => { e.preventDefault(); handleCreateService(trimester, 'normal'); setIsAddMenuOpen(false); }} className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
-                                    <span className="font-semibold">Servicio Normal</span>
-                                    <span className="block text-xs text-gray-500">Basado en grupos de prácticas.</span>
+                                    <div className="flex items-center">
+                                        <span className="h-2 w-2 rounded-full bg-blue-500 mr-3"></span>
+                                        <div>
+                                            <span className="font-semibold">Servicio Normal</span>
+                                            <span className="block text-xs text-gray-500">Basado en grupos de prácticas.</span>
+                                        </div>
+                                    </div>
                                 </a>
                                 <a href="#" onClick={(e) => { e.preventDefault(); handleCreateService(trimester, 'agrupacion'); setIsAddMenuOpen(false); }} className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
-                                    <span className="font-semibold">Servicio de Agrupaciones</span>
-                                    <span className="block text-xs text-gray-500">Grupos pequeños por elaboración.</span>
+                                     <div className="flex items-center">
+                                        <span className="h-2 w-2 rounded-full bg-purple-500 mr-3"></span>
+                                        <div>
+                                            <span className="font-semibold">Servicio de Agrupaciones</span>
+                                            <span className="block text-xs text-gray-500">Grupos pequeños por elaboración.</span>
+                                        </div>
+                                    </div>
                                 </a>
                             </div>
                         )}
@@ -527,7 +541,29 @@ const GestionPracticaView: React.FC<GestionPracticaViewProps> = ({
                 </div>
                 {!isCollapsed && (
                     <ul className="space-y-2 pl-2">
-                        {groupedServices[trimester].map(service => (<li key={service.id}><a href="#" onClick={(e) => { e.preventDefault(); setSelectedServiceId(service.id); setMainTab('planning'); }} className={`block p-3 rounded-lg transition-colors ${selectedServiceId === service.id ? 'bg-blue-100' : 'hover:bg-gray-100'}`}><div className="flex justify-between items-center"><p className={`font-semibold ${selectedServiceId === service.id ? 'text-blue-800' : 'text-gray-800'}`}>{service.name}</p> {service.isLocked && <LockClosedIcon className="w-4 h-4 text-gray-500" />}</div><p className="text-sm text-gray-500">{new Date(service.date).toLocaleDateString('es-ES')}</p></a></li>))}
+                        {groupedServices[trimester].map(service => {
+                            const isAgrupacion = service.type === 'agrupacion';
+                            const isSelected = selectedServiceId === service.id;
+                            const colorClasses = isSelected
+                                ? (isAgrupacion ? 'bg-purple-50 border-purple-500' : 'bg-blue-50 border-blue-500')
+                                : (isAgrupacion ? 'border-purple-300 hover:bg-purple-50' : 'border-blue-300 hover:bg-blue-50');
+
+                            return (
+                                <li key={service.id}>
+                                    <a 
+                                        href="#" 
+                                        onClick={(e) => { e.preventDefault(); setSelectedServiceId(service.id); setMainTab('planning'); }} 
+                                        className={`block p-3 rounded-lg transition-colors border-l-4 ${colorClasses}`}
+                                    >
+                                        <div className="flex justify-between items-center">
+                                            <p className={`font-semibold ${isSelected ? (isAgrupacion ? 'text-purple-800' : 'text-blue-800') : 'text-gray-800'}`}>{service.name}</p> 
+                                            {service.isLocked && <LockClosedIcon className="w-4 h-4 text-gray-500" />}
+                                        </div>
+                                        <p className="text-sm text-gray-500">{new Date(service.date).toLocaleDateString('es-ES')}</p>
+                                    </a>
+                                </li>
+                            );
+                        })}
                     </ul>
                 )}
             </div>

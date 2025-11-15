@@ -45,27 +45,70 @@ const Tab: React.FC<{ label: string; isActive: boolean; onClick: () => void; }> 
     </button>
 );
 
-const ServicePerformanceChart: React.FC<{ data: { name: string; grade: number | null }[] }> = ({ data }) => {
+const CombinedPerformanceChart: React.FC<{
+    data: { name: string; studentGrade: number | null; classAverage: number | null }[];
+}> = ({ data }) => {
     if (data.length === 0) return null;
+
+    const chartHeight = 150; // in px
+    const chartWidth = data.length * 60; // dynamic width
+    const maxValue = 10;
+
+    // Create SVG path for the line
+    const points = data.map((item, index) => {
+        if (item.classAverage === null) return null;
+        const x = index * 60 + 30; // center of the bar
+        const y = chartHeight - (item.classAverage / maxValue) * chartHeight;
+        return `${x},${y}`;
+    }).filter(Boolean).join(' ');
+
     return (
-        <div className="w-full">
-            <div className="flex justify-around items-end h-48 p-4 bg-gray-50 rounded-lg border">
-                {data.map((item, index) => {
-                    const height = item.grade !== null ? `${(item.grade / 10) * 100}%` : '2%';
-                    const barColor = item.grade === null ? 'bg-gray-300' : item.grade < 5 ? 'bg-red-400' : 'bg-green-400';
-                    return (
-                        <div key={index} className="flex-1 flex flex-col items-center justify-end px-2" title={`${item.name}: ${item.grade?.toFixed(2) ?? 'N/A'}`}>
-                             <div className="text-xs font-bold text-gray-700">
-                                {item.grade?.toFixed(1) ?? 'N/A'}
+        <div className="w-full overflow-x-auto pb-4">
+            <div style={{ width: Math.max(chartWidth, 300), height: chartHeight + 30 }} className="relative mx-auto">
+                {/* Y-axis labels */}
+                <div className="absolute -left-8 top-0 h-full flex flex-col justify-between text-xs text-gray-500" style={{ height: chartHeight }}>
+                    <span>10</span>
+                    <span>5</span>
+                    <span>0</span>
+                </div>
+
+                {/* Bars */}
+                <div className="absolute bottom-[30px] left-0 right-0 h-full flex justify-around items-end border-l border-b border-gray-200" style={{ height: chartHeight }}>
+                    {data.map((item, index) => {
+                        const barHeight = item.studentGrade !== null ? `${(item.studentGrade / maxValue) * 100}%` : '2%';
+                        const barColor = item.studentGrade === null ? 'bg-gray-300' : item.studentGrade < 5 ? 'bg-orange-400' : 'bg-teal-400';
+                        return (
+                            <div key={index} className="flex-1 flex flex-col items-center justify-end px-2 h-full" title={`Tu nota: ${item.studentGrade?.toFixed(2) ?? 'N/A'}\nMedia clase: ${item.classAverage?.toFixed(2) ?? 'N/A'}`}>
+                                <div className={`w-full max-w-[30px] rounded-t-md transition-all duration-500 ease-out ${barColor}`} style={{ height: barHeight }}></div>
                             </div>
-                            <div
-                                className={`w-full max-w-[40px] rounded-t-md transition-all duration-500 ease-out ${barColor}`}
-                                style={{ height }}
-                            ></div>
-                            <div className="text-xs text-gray-500 mt-2 text-center transform -rotate-45 h-10">{item.name}</div>
-                        </div>
-                    );
-                })}
+                        );
+                    })}
+                </div>
+                {/* Line */}
+                <svg className="absolute top-0 left-0 w-full" style={{ height: chartHeight }}>
+                    <polyline
+                        fill="none"
+                        stroke="#3b82f6"
+                        strokeWidth="2"
+                        points={points}
+                    />
+                    {data.map((item, index) => {
+                        if (item.classAverage === null) return null;
+                        const cx = index * 60 + 30;
+                        const cy = chartHeight - (item.classAverage / maxValue) * chartHeight;
+                        return <circle key={index} cx={cx} cy={cy} r="3" fill="#3b82f6" stroke="white" strokeWidth="1" />;
+                    })}
+                </svg>
+                 {/* Labels */}
+                <div className="absolute bottom-0 left-0 right-0 h-[30px] flex justify-around items-start">
+                    {data.map((item, index) => (
+                         <div key={index} className="flex-1 text-xs text-gray-500 text-center px-1 truncate" title={item.name}>{item.name}</div>
+                    ))}
+                </div>
+            </div>
+             <div className="flex items-center justify-center space-x-4 mt-4 text-xs">
+                <div className="flex items-center"><span className="w-3 h-3 bg-teal-400 mr-2 rounded-sm"></span>Tu Nota</div>
+                <div className="flex items-center"><div className="w-4 h-0.5 bg-blue-500 mr-2"></div>Media de la Clase</div>
             </div>
         </div>
     );
@@ -74,6 +117,7 @@ const ServicePerformanceChart: React.FC<{ data: { name: string; grade: number | 
 
 const FichaAlumno: React.FC<FichaAlumnoProps> = ({ student, onBack, onUpdatePhoto, onUpdateStudent }) => {
   const { 
+    students,
     teacherData, 
     instituteData,
     resultadosAprendizaje, 
@@ -193,35 +237,64 @@ const FichaAlumno: React.FC<FichaAlumnoProps> = ({ student, onBack, onUpdatePhot
                         participationInfo = { groupName: `Agrup. ${agrupacion.name}` };
                     }
                 }
-
+                
                 if (!participationInfo) return null;
 
+                // Grade for current student
                 const individualEval = evaluation.serviceDay.individualScores[student.id];
                 if (!individualEval || individualEval.attendance === false) return null;
-
                 const individualGrade = (individualEval.scores || []).reduce((sum, score) => sum + (score || 0), 0);
-                
                 let groupGrade = 0;
-                if (studentPracticeGroup) {
+                if (studentPracticeGroup && service.type === 'normal') {
                     const groupEval = evaluation.serviceDay.groupScores[studentPracticeGroup.id];
                     if (groupEval) {
                         groupGrade = (groupEval.scores || []).reduce((sum, score) => sum + (score || 0), 0);
                         if (individualEval.halveGroupScore) groupGrade /= 2;
                     }
                 }
+                const studentFinalGrade = (individualGrade + groupGrade) / 2;
                 
-                const finalGrade = (individualGrade + groupGrade) / 2;
-
                 const observations = [
                     individualEval.observations,
                     studentPracticeGroup ? evaluation.serviceDay.groupScores[studentPracticeGroup.id]?.observations : ''
                 ].filter(Boolean).join(' | ');
+                
+                // Calculate class average for this service
+                const gradesOfAllStudents: number[] = [];
+                students.forEach(s => {
+                    let participated = false;
+                    const sPracticeGroup = practiceGroups.find(pg => pg.studentIds.includes(s.id));
+                    if (service.type === 'normal' && sPracticeGroup && (service.assignedGroups.comedor.includes(sPracticeGroup.id) || service.assignedGroups.takeaway.includes(sPracticeGroup.id))) {
+                        participated = true;
+                    } else if (service.type === 'agrupacion' && (service.agrupaciones || []).some(a => a.studentIds.includes(s.id))) {
+                        participated = true;
+                    }
 
-                return { service, finalGrade, individualGrade, groupGrade, observations, ...participationInfo };
+                    if (participated) {
+                        const sIndividualEval = evaluation.serviceDay.individualScores[s.id];
+                        if (!sIndividualEval || sIndividualEval.attendance === false) {
+                            gradesOfAllStudents.push(0);
+                        } else {
+                            const sIndividualGrade = (sIndividualEval.scores || []).reduce((sum, score) => sum + (score || 0), 0);
+                            let sGroupGrade = 0;
+                            if (sPracticeGroup && service.type === 'normal') {
+                                const sGroupEval = evaluation.serviceDay.groupScores[sPracticeGroup.id];
+                                if (sGroupEval) {
+                                    sGroupGrade = (sGroupEval.scores || []).reduce((sum, score) => sum + (score || 0), 0);
+                                    if (sIndividualEval.halveGroupScore) sGroupGrade /= 2;
+                                }
+                            }
+                            gradesOfAllStudents.push((sIndividualGrade + sGroupGrade) / 2);
+                        }
+                    }
+                });
+                const classAverage = gradesOfAllStudents.length > 0 ? gradesOfAllStudents.reduce((a, b) => a + b, 0) / gradesOfAllStudents.length : null;
+
+                return { service, studentGrade: studentFinalGrade, classAverage, individualGrade, groupGrade, observations, ...participationInfo };
             })
             .filter((s): s is NonNullable<typeof s> => s !== null)
             .sort((a,b) => new Date(a.service.date).getTime() - new Date(b.service.date).getTime());
-    }, [student.id, services, serviceEvaluations, practiceGroups]);
+    }, [student.id, students, services, serviceEvaluations, practiceGroups]);
 
 
   const TimelineIcon: React.FC<{type: TimelineEvent['type']}> = ({ type }) => {
@@ -387,7 +460,7 @@ const FichaAlumno: React.FC<FichaAlumnoProps> = ({ student, onBack, onUpdatePhot
                 <h3 className="text-xl font-bold text-gray-800 flex items-center"><BarChartIcon className="w-6 h-6 mr-2 text-blue-500"/>Rendimiento en Servicios</h3>
                 {studentServicesData && studentServicesData.length > 0 ? (
                     <>
-                        <ServicePerformanceChart data={studentServicesData.map(d => ({ name: d.service.name, grade: d.finalGrade }))} />
+                        <CombinedPerformanceChart data={studentServicesData.map(d => ({ name: d.service.name, studentGrade: d.studentGrade, classAverage: d.classAverage }))} />
                         <div className="overflow-x-auto">
                             <table className="min-w-full text-sm">
                                 <thead className="bg-gray-100"><tr><th className="p-2 text-left">Servicio</th><th className="p-2">Fecha</th><th className="p-2">Grupo/Agrupación</th><th className="p-2">Nota Ind.</th><th className="p-2">Nota Grupal</th><th className="p-2">Nota Final</th><th className="p-2 text-left">Observaciones</th></tr></thead>
@@ -399,7 +472,7 @@ const FichaAlumno: React.FC<FichaAlumnoProps> = ({ student, onBack, onUpdatePhot
                                             <td className="p-2 text-center">{data.groupName}</td>
                                             <td className="p-2 text-center font-medium">{data.individualGrade.toFixed(2)}</td>
                                             <td className="p-2 text-center font-medium">{data.groupGrade.toFixed(2)}</td>
-                                            <td className={`p-2 text-center font-bold ${data.finalGrade < 5 ? 'text-red-600' : 'text-green-600'}`}>{data.finalGrade.toFixed(2)}</td>
+                                            <td className={`p-2 text-center font-bold ${data.studentGrade < 5 ? 'text-red-600' : 'text-green-600'}`}>{data.studentGrade.toFixed(2)}</td>
                                             <td className="p-2 text-gray-600 max-w-xs truncate" title={data.observations}>{data.observations}</td>
                                         </tr>
                                     ))}
