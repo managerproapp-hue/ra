@@ -407,7 +407,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             });
              setCriteriosEvaluacion(prev => {
                 const newCriterios = { ...prev };
-                // FIX: Cast Object.values to CriterioEvaluacion[] to provide type information to TypeScript.
                 (Object.values(newCriterios) as CriterioEvaluacion[]).forEach(c => {
                     if (c.asociaciones) {
                         c.asociaciones = c.asociaciones.filter(a => a.utId !== utId);

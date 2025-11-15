@@ -243,7 +243,6 @@ const InstrumentosView: React.FC = () => {
     };
     
     const handleSaveAllPonderaciones = () => {
-        // FIX: The type of `inst` is inferred as `unknown` from Object.values(), causing a type error. Casting the result of Object.values() to an array of the correct type resolves this.
         const totalPeso = (Object.values(localInstrumentos) as InstrumentoEvaluacion[]).reduce((sum, inst) => sum + (inst.pesoTotal || 0), 0);
         if (totalPeso > 100) {
             addToast(`El peso total no puede superar el 100% (actual: ${totalPeso}%)`, 'error');
@@ -253,7 +252,6 @@ const InstrumentosView: React.FC = () => {
         addToast('Ponderaciones guardadas con éxito.', 'success');
     };
 
-    // FIX: The type of `inst` is inferred as `unknown` from Object.values(), causing a type error. Casting the result of Object.values() to an array of the correct type resolves this.
     const totalPeso = useMemo(() => (Object.values(localInstrumentos) as InstrumentoEvaluacion[]).reduce((sum, inst) => sum + (inst.pesoTotal || 0), 0), [localInstrumentos]);
 
     return (
@@ -285,7 +283,6 @@ const InstrumentosView: React.FC = () => {
                     </thead>
                 </table>
                 <div className="space-y-1">
-                    {/* FIX: Cast Object.values to InstrumentoEvaluacion[] to provide type information to TypeScript for mapping. */}
                     {(Object.values(localInstrumentos) as InstrumentoEvaluacion[]).map((inst) => {
                         const isExpanded = expandedInstrument === inst.id;
                         return (
