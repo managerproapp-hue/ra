@@ -278,7 +278,7 @@ const ServiceEvaluationView: React.FC<ServiceEvaluationViewProps> = ({ service, 
                 id: a.id,
                 name: a.name,
                 studentIds: a.studentIds,
-                elaborations: [], // Empty for agrupacion type to avoid redundancy
+                elaborations: [],
             }));
         }
         // 'normal'
@@ -460,7 +460,7 @@ const ServiceEvaluationView: React.FC<ServiceEvaluationViewProps> = ({ service, 
                         return (
                             <div key={unit.id} className="bg-white p-4 rounded-lg shadow-sm">
                                 <h3 className="text-xl font-bold mb-3 text-gray-700">{unit.name}</h3>
-                                {unit.elaborations.length > 0 && (
+                                {service.type === 'normal' && unit.elaborations.length > 0 && (
                                     <div className="mb-4 p-3 bg-gray-50 rounded-md"><h4 className="text-sm font-semibold text-gray-600 mb-1">Elaboraciones Asignadas:</h4><ul className="list-disc list-inside text-sm text-gray-800">{unit.elaborations.map(e => <li key={e.name}>{e.name}</li>)}</ul></div>
                                 )}
                                 <div className="mb-4">
@@ -555,7 +555,7 @@ const ServiceEvaluationView: React.FC<ServiceEvaluationViewProps> = ({ service, 
                          return (
                             <div key={unit.id} className="bg-white p-4 rounded-lg shadow-sm">
                                 <h3 className="text-xl font-bold mb-3 text-gray-700">Evaluación Individual - {unit.name}</h3>
-                                {unit.elaborations.length > 0 && (
+                                {service.type === 'normal' && unit.elaborations.length > 0 && (
                                     <div className="mb-4 p-3 bg-gray-50 rounded-md"><h4 className="text-sm font-semibold text-gray-600 mb-1">Elaboraciones Asignadas:</h4><ul className="list-disc list-inside text-sm text-gray-800">{unit.elaborations.map(e => <li key={e.name}>{e.name}</li>)}</ul></div>
                                 )}
                                 <ServiceDayIndividualEvaluationTable studentsInGroup={unitStudents} evaluationData={evaluation.serviceDay.individualScores} onUpdate={handleServiceDayIndividualUpdate} handleNumericInputChange={handleNumericInputChange} entryExitRecordsForWeek={entryExitRecordsForWeek} isLocked={isLocked} />
