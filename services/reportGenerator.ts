@@ -268,78 +268,54 @@ export const generateFullEvaluationReportPDF = (viewModel: ReportViewModel) => {
         addFooter(doc, data, teacherData, instituteData);
     };
 
-    if (service.type === 'agrupacion') {
-        const agrupaciones = service.agrupaciones || [];
-        const groupEvalHead = [['Criterio de Evaluación Grupal', ...agrupaciones.map(g => g.name)]];
-        const groupEvalBody: any[][] = GROUP_EVALUATION_ITEMS.map((item, index) => [item.label, ...agrupaciones.map(group => evaluation.serviceDay.groupScores[group.id]?.scores[index]?.toFixed(2) ?? '-')]);
-        const groupTotals = agrupaciones.map(group => (evaluation.serviceDay.groupScores[group.id]?.scores || []).reduce((sum, s) => sum + (s || 0), 0));
-        groupEvalBody.push([{ content: 'TOTAL', styles: { fontStyle: 'bold' } }, ...groupTotals.map(total => ({ content: `${total.toFixed(2)} / 10.00`, styles: { fontStyle: 'bold' } }))]);
-        groupEvalBody.push([{ content: 'Observaciones', styles: { fontStyle: 'bold' } }, ...agrupaciones.map(group => evaluation.serviceDay.groupScores[group.id]?.observations || '')]);
-        autoTable(doc, { head: groupEvalHead, body: groupEvalBody, startY: 32, margin: { top: 30, bottom: 20 }, headStyles: { fillColor: [56, 161, 105] }, didDrawPage });
-        
-        const preServiceDate = Object.keys(evaluation.preService)[0] || null;
+    const evaluationUnits = service.type === 'agrupacion'
+    ? (service.agrupaciones || []).map(a => ({
+        id: a.id,
+        name: a.name,
+        students: students.filter(s => a.studentIds.includes(s.id))
+      }))
+    : groupedStudentsInService.map(g => ({
+        id: g.group.id,
+        name: g.group.name,
+        students: g.students
+      }));
 
-        agrupaciones.forEach(agrupacion => {
-            doc.addPage();
-            const studentsInGroup = students.filter(s => agrupacion.studentIds.includes(s.id));
-            if (studentsInGroup.length === 0) return;
-            
-            const studentHeaders = studentsInGroup.map(s => `${s.apellido1} ${s.nombre.charAt(0)}.`);
-            const individualEvalHead = [['Criterio de Evaluación Individual', ...studentHeaders]];
-            const individualEvalBody: any[][] = [];
-            
-            individualEvalBody.push([{ content: `DÍA PREVIO (${preServiceDate ? new Date(preServiceDate).toLocaleDateString('es-ES') : 'N/A'})`, colSpan: studentsInGroup.length + 1, styles: { fillColor: [220, 220, 220], fontStyle: 'bold', textColor: 40 } }]);
-            const preServiceChecks = ['attendance', 'hasFichas', 'hasUniforme', 'hasMaterial'];
-            preServiceChecks.forEach(check => individualEvalBody.push([check, ...studentsInGroup.map(s => (preServiceDate ? (evaluation.preService[preServiceDate]?.individualEvaluations[s.id]?.[check as keyof typeof evaluation.preService[string]['individualEvaluations'][string]] ?? (check === 'attendance')) : false) ? '✔' : '✘')]));
-            PRE_SERVICE_BEHAVIOR_ITEMS.forEach(item => individualEvalBody.push([item.label, ...studentsInGroup.map(s => BEHAVIOR_RATING_MAP.find(r => r.value === (preServiceDate ? evaluation.preService[preServiceDate]?.individualEvaluations[s.id]?.behaviorScores[item.id] : null))?.symbol ?? '-')]));
-
-            individualEvalBody.push([{ content: 'DÍA DE SERVICIO', colSpan: studentsInGroup.length + 1, styles: { fillColor: [220, 220, 220], fontStyle: 'bold', textColor: 40 } }]);
-            INDIVIDUAL_EVALUATION_ITEMS.forEach((item, index) => individualEvalBody.push([item.label, ...studentsInGroup.map(s => evaluation.serviceDay.individualScores[s.id]?.scores[index]?.toFixed(2) ?? '-')]));
-            const individualTotals = studentsInGroup.map(s => (evaluation.serviceDay.individualScores[s.id]?.scores || []).reduce((sum, score) => sum + (score || 0), 0));
-            individualEvalBody.push([{ content: 'TOTAL DÍA SERVICIO', styles: { fontStyle: 'bold' } }, ...individualTotals.map(total => ({ content: `${total.toFixed(2)} / 10.00`, styles: { fontStyle: 'bold' } }))]);
-            individualEvalBody.push([{ content: 'Observaciones', styles: { fontStyle: 'bold' } }, ...studentsInGroup.map(s => evaluation.serviceDay.individualScores[s.id]?.observations || '')]);
-            
-            autoTable(doc, { head: [[{ content: `Agrupación: ${agrupacion.name}`, colSpan: studentsInGroup.length + 1, styles: { halign: 'center', fillColor: [49, 130, 206], fontStyle: 'bold' } }]], body: [], startY: 32, margin: { top: 30, bottom: 20 }, didDrawPage });
-            autoTable(doc, { head: individualEvalHead, body: individualEvalBody, startY: (doc as any).lastAutoTable.finalY, margin: { top: 30, bottom: 20 }, headStyles: { fillColor: [74, 85, 104] }, didDrawPage });
-        });
-
-    } else { // 'normal'
-        const participatingGroups = groupedStudentsInService.map(g => g.group);
-        const groupEvalHead = [['Criterio de Evaluación Grupal', ...participatingGroups.map(g => g.name)]];
-        const groupEvalBody: any[][] = GROUP_EVALUATION_ITEMS.map((item, index) => [item.label, ...participatingGroups.map(group => evaluation.serviceDay.groupScores[group.id]?.scores[index]?.toFixed(2) ?? '-')]);
-        const groupTotals = participatingGroups.map(group => (evaluation.serviceDay.groupScores[group.id]?.scores || []).reduce((sum, s) => sum + (s || 0), 0));
-        groupEvalBody.push([{ content: 'TOTAL', styles: { fontStyle: 'bold' } }, ...groupTotals.map(total => ({ content: `${total.toFixed(2)} / 10.00`, styles: { fontStyle: 'bold' } }))]);
-        groupEvalBody.push([{ content: 'Observaciones', styles: { fontStyle: 'bold' } }, ...participatingGroups.map(group => evaluation.serviceDay.groupScores[group.id]?.observations || '')]);
-
-        autoTable(doc, { head: groupEvalHead, body: groupEvalBody, startY: 32, margin: { top: 30, bottom: 20 }, headStyles: { fillColor: [56, 161, 105] }, didDrawPage });
-
-        const preServiceDate = Object.keys(evaluation.preService)[0] || null;
-
-        groupedStudentsInService.forEach(groupData => {
-            doc.addPage();
-            const studentsInGroup = groupData.students;
-            const studentHeaders = studentsInGroup.map(s => `${s.apellido1} ${s.nombre.charAt(0)}.`);
-            const individualEvalHead = [['Criterio de Evaluación Individual', ...studentHeaders]];
-            const individualEvalBody: any[][] = [];
-            
-            individualEvalBody.push([{ content: `DÍA PREVIO (${preServiceDate ? new Date(preServiceDate).toLocaleDateString('es-ES') : 'N/A'})`, colSpan: studentsInGroup.length + 1, styles: { fillColor: [220, 220, 220], fontStyle: 'bold', textColor: 40 } }]);
-            const preServiceChecks = ['attendance', 'hasFichas', 'hasUniforme', 'hasMaterial'];
-            preServiceChecks.forEach(check => individualEvalBody.push([check, ...studentsInGroup.map(s => (preServiceDate ? (evaluation.preService[preServiceDate]?.individualEvaluations[s.id]?.[check as keyof typeof evaluation.preService[string]['individualEvaluations'][string]] ?? (check === 'attendance')) : false) ? '✔' : '✘')]));
-            PRE_SERVICE_BEHAVIOR_ITEMS.forEach(item => individualEvalBody.push([item.label, ...studentsInGroup.map(s => BEHAVIOR_RATING_MAP.find(r => r.value === (preServiceDate ? evaluation.preService[preServiceDate]?.individualEvaluations[s.id]?.behaviorScores[item.id] : null))?.symbol ?? '-')]));
-
-            individualEvalBody.push([{ content: 'DÍA DE SERVICIO', colSpan: studentsInGroup.length + 1, styles: { fillColor: [220, 220, 220], fontStyle: 'bold', textColor: 40 } }]);
-            INDIVIDUAL_EVALUATION_ITEMS.forEach((item, index) => individualEvalBody.push([item.label, ...studentsInGroup.map(s => evaluation.serviceDay.individualScores[s.id]?.scores[index]?.toFixed(2) ?? '-')]));
-            const individualTotals = studentsInGroup.map(s => (evaluation.serviceDay.individualScores[s.id]?.scores || []).reduce((sum, score) => sum + (score || 0), 0));
-            individualEvalBody.push([{ content: 'TOTAL DÍA SERVICIO', styles: { fontStyle: 'bold' } }, ...individualTotals.map(total => ({ content: `${total.toFixed(2)} / 10.00`, styles: { fontStyle: 'bold' } }))]);
-            individualEvalBody.push([{ content: 'Observaciones', styles: { fontStyle: 'bold' } }, ...studentsInGroup.map(s => evaluation.serviceDay.individualScores[s.id]?.observations || '')]);
-            
-            autoTable(doc, { head: [[{ content: `Grupo ${groupData.group.name}`, colSpan: studentsInGroup.length + 1, styles: { halign: 'center', fillColor: [49, 130, 206], fontStyle: 'bold' } }]], body: [], startY: 32, margin: { top: 30, bottom: 20 }, didDrawPage });
-            autoTable(doc, { head: individualEvalHead, body: individualEvalBody, startY: (doc as any).lastAutoTable.finalY, margin: { top: 30, bottom: 20 }, headStyles: { fillColor: [74, 85, 104] }, didDrawPage });
-        });
+    if (evaluationUnits.length === 0) {
+        doc.setFontSize(12).text('No hay grupos o alumnos asignados a este servicio.', PAGE_MARGIN, 40);
+        doc.save(`Evaluacion_${service.name.replace(/ /g, '_')}.pdf`);
+        return;
     }
+    
+    const groupEvalTitle = service.type === 'agrupacion' ? 'Evaluación de Agrupaciones' : 'Evaluación Grupal';
+    const groupEvalHead = [[`Criterio de ${groupEvalTitle}`, ...evaluationUnits.map(unit => unit.name)]];
+    const groupEvalBody: any[][] = GROUP_EVALUATION_ITEMS.map((item, index) => [item.label, ...evaluationUnits.map(unit => evaluation.serviceDay.groupScores[unit.id]?.scores[index]?.toFixed(2) ?? '-')]);
+    const groupTotals = evaluationUnits.map(unit => (evaluation.serviceDay.groupScores[unit.id]?.scores || []).reduce((sum, s) => sum + (s || 0), 0));
+    groupEvalBody.push([{ content: 'TOTAL', styles: { fontStyle: 'bold' } }, ...groupTotals.map(total => ({ content: `${total.toFixed(2)} / 10.00`, styles: { fontStyle: 'bold' } }))]);
+    groupEvalBody.push([{ content: 'Observaciones', styles: { fontStyle: 'bold' } }, ...evaluationUnits.map(unit => evaluation.serviceDay.groupScores[unit.id]?.observations || '')]);
+    
+    autoTable(doc, { head: groupEvalHead, body: groupEvalBody, startY: 32, margin: { top: 30, bottom: 20 }, headStyles: { fillColor: [56, 161, 105] }, didDrawPage });
+
+    evaluationUnits.forEach(unit => {
+        if (unit.students.length === 0) return;
+        doc.addPage();
+        
+        const studentHeaders = unit.students.map(s => `${s.apellido1} ${s.nombre.charAt(0)}.`);
+        const individualEvalHead = [['Criterio de Evaluación Individual', ...studentHeaders]];
+        const individualEvalBody: any[][] = [];
+
+        INDIVIDUAL_EVALUATION_ITEMS.forEach((item, index) => individualEvalBody.push([item.label, ...unit.students.map(s => evaluation.serviceDay.individualScores[s.id]?.scores[index]?.toFixed(2) ?? '-')]));
+        const individualTotals = unit.students.map(s => (evaluation.serviceDay.individualScores[s.id]?.scores || []).reduce((sum, score) => sum + (score || 0), 0));
+        individualEvalBody.push([{ content: 'TOTAL DÍA SERVICIO', styles: { fontStyle: 'bold' } }, ...individualTotals.map(total => ({ content: `${total.toFixed(2)} / 10.00`, styles: { fontStyle: 'bold' } }))]);
+        individualEvalBody.push([{ content: 'Observaciones', styles: { fontStyle: 'bold' } }, ...unit.students.map(s => evaluation.serviceDay.individualScores[s.id]?.observations || '')]);
+        
+        const title = service.type === 'agrupacion' ? `Elaboración: ${unit.name}` : `Grupo ${unit.name}`;
+        autoTable(doc, { head: [[{ content: title, colSpan: unit.students.length + 1, styles: { halign: 'center', fillColor: [49, 130, 206], fontStyle: 'bold' } }]], body: [], startY: 32, margin: { top: 30, bottom: 20 }, didDrawPage });
+        autoTable(doc, { head: individualEvalHead, body: individualEvalBody, startY: (doc as any).lastAutoTable.finalY, margin: { top: 30, bottom: 20 }, headStyles: { fillColor: [74, 85, 104] }, didDrawPage });
+    });
 
     doc.save(`Evaluacion_${service.name.replace(/ /g, '_')}.pdf`);
 };
+
 
 // --- Detailed Student Service Report PDF (Internal Helper) ---
 const _drawDetailedStudentReportPage = (doc: jsPDF, viewModel: ReportViewModel, studentId: string) => {

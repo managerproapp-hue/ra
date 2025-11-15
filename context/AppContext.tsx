@@ -212,7 +212,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
                     if (individualEval && individualEval.attendance !== false) {
                         individualGrade = (individualEval.scores || []).reduce((sum, score) => sum + (score || 0), 0);
-                        
+
                         if (service.type === 'agrupacion') {
                             const studentAgrupacion = service.agrupaciones?.find(a => a.studentIds.includes(student.id));
                             if (studentAgrupacion && evaluation) {
