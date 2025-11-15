@@ -339,7 +339,6 @@ const RAView: React.FC = () => {
     
     const sourceRAs = isEditingWeights ? localRAs : resultadosAprendizaje;
     const sourceCriterios = isEditingWeights ? localCriterios : criteriosEvaluacion;
-    // FIX: Add type casting to resolve 'unknown' type from Object.values
     const totalRAPonderacion = useMemo(() => (Object.values(sourceRAs) as ResultadoAprendizaje[]).reduce((sum, ra) => sum + (ra.ponderacion || 0), 0), [sourceRAs]);
     const totalRAColor = totalRAPonderacion === 100 ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800';
 
@@ -376,7 +375,6 @@ const RAView: React.FC = () => {
             </div>
             
             <div className="space-y-4">
-                {/* FIX: Add type casting to resolve 'unknown' type from Object.values */}
                 {(Object.values(sourceRAs) as ResultadoAprendizaje[]).sort((a,b) => a.nombre.localeCompare(b.nombre)).map(ra => {
                     const isExpanded = expandedRAs.has(ra.id);
                     const ponderacionTotalCriterios = ra.criteriosEvaluacion.reduce((s, cId) => s + (sourceCriterios[cId]?.ponderacion || 0), 0);
@@ -427,6 +425,31 @@ const RAView: React.FC = () => {
                                                             <button onClick={() => handleDelete('criterio', criterio.id, ra.id)} className="p-1.5 text-gray-500 hover:text-red-600 rounded-full"><TrashIcon className="w-4 h-4"/></button>
                                                         </div>
                                                     </div>
+                                                    {criterio.asociaciones && criterio.asociaciones.length > 0 && (
+                                                        <div className="mt-3 pt-2 border-t border-dashed">
+                                                            {criterio.asociaciones.map(asoc => {
+                                                                const ut = unidadesTrabajo[asoc.utId];
+                                                                if (!ut) return null;
+                                                                return (
+                                                                    <div key={asoc.id} className="text-xs mt-1">
+                                                                        <div className="flex items-center">
+                                                                            <span className="font-semibold text-gray-600 bg-gray-100 px-2 py-0.5 rounded-md">{ut.nombre}</span>
+                                                                        </div>
+                                                                        <div className="flex flex-wrap gap-1 mt-1 pl-4">
+                                                                            {asoc.activityIds.length > 0 ? asoc.activityIds.map(actId => {
+                                                                                const activityInfo = activityInfoMap.get(actId);
+                                                                                return (
+                                                                                    <span key={actId} className="bg-blue-100 text-blue-800 text-xs font-medium px-2 py-0.5 rounded-full">
+                                                                                        {activityInfo ? `${activityInfo.instrumentName}: ${activityInfo.activityName}` : `ID: ${actId}`}
+                                                                                    </span>
+                                                                                );
+                                                                            }) : <span className="text-gray-400 italic">Sin actividades asociadas.</span>}
+                                                                        </div>
+                                                                    </div>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    )}
                                                 </div>
                                             );
                                         })}
