@@ -1,3 +1,4 @@
+
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { ReportViewModel, Student, ServiceRole, TeacherData, InstituteData, StudentCalculatedGrades, StudentAcademicGrades, StudentCourseGrades, TimelineEvent, GradeValue, UnidadTrabajo, ResultadoAprendizaje, CriterioEvaluacion, InstrumentoEvaluacion } from '../types';
@@ -29,6 +30,39 @@ const addFooter = (doc: jsPDF, data: any, teacherData: TeacherData, instituteDat
     doc.text(date, pageWidth - PAGE_MARGIN, pageHeight - 10, { align: 'right' });
 };
 
+const drawLeadersSection = (doc: jsPDF, viewModel: ReportViewModel, startY: number, didDrawPage: (data: any) => void): number => {
+    const { service, serviceRoles, participatingStudents } = viewModel;
+
+    const leaders = participatingStudents
+        .map(student => ({
+            student,
+            role: serviceRoles.find(r => r.id === service.studentRoles.find(sr => sr.studentId === student.id)?.roleId)
+        }))
+        .filter(item => item.role?.type === 'leader')
+        .sort((a, b) => (a.role?.name || '').localeCompare(b.role?.name || ''));
+
+    if (leaders.length === 0) {
+        return startY;
+    }
+    
+    const leadersBody = leaders.map(l => [
+        { content: l.role?.name || 'Rol desconocido', styles: { fontStyle: 'bold' } },
+        `${l.student.nombre} ${l.student.apellido1} ${l.student.apellido2}`
+    ]);
+
+    autoTable(doc, {
+        startY: startY,
+        head: [['Puesto Principal', 'Alumno Asignado']],
+        body: leadersBody,
+        theme: 'striped',
+        headStyles: { fillColor: [74, 85, 104], textColor: 255, fontStyle: 'bold', halign: 'center' },
+        didDrawPage,
+        margin: { top: 35, bottom: 20 }
+    });
+
+    return (doc as any).lastAutoTable.finalY;
+};
+
 
 // --- Planning PDF ---
 
@@ -52,39 +86,9 @@ export const generatePlanningPDF = (viewModel: ReportViewModel) => {
         addFooter(doc, data, teacherData, instituteData);
     };
 
+    lastY = drawLeadersSection(doc, viewModel, 32, didDrawPage) + 8;
+
     if (service.type === 'agrupacion') {
-        const allAgrupacionStudents = new Map<string, Student>();
-        (service.agrupaciones || []).forEach(agrup => {
-            agrup.studentIds.forEach(studentId => {
-                if (!allAgrupacionStudents.has(studentId)) {
-                    const student = students.find(s => s.id === studentId);
-                    if (student) allAgrupacionStudents.set(studentId, student);
-                }
-            });
-        });
-
-        const leaders = Array.from(allAgrupacionStudents.values())
-            .map(student => ({
-                student,
-                role: serviceRoles.find(r => r.id === service.studentRoles.find(sr => sr.studentId === student.id)?.roleId)
-            }))
-            .filter(item => item.role?.type === 'leader')
-            .sort((a,b) => a.role!.name.localeCompare(b.role!.name));
-        
-        const leadersBody = leaders.map(l => [{ content: l.role?.name, styles: { fontStyle: 'bold' } }, `${l.student.nombre} ${l.student.apellido1} ${l.student.apellido2}`]);
-
-        autoTable(doc, {
-            startY: 32,
-            head: [['Líderes del Servicio']],
-            body: leadersBody,
-            theme: 'striped',
-            headStyles: { fillColor: [220, 220, 220], textColor: 40, fontStyle: 'bold' },
-            didDrawPage,
-            margin: { top: 35, bottom: 20 }
-        });
-        
-        lastY = (doc as any).lastAutoTable.finalY + 8;
-        
         (service.agrupaciones || []).forEach(agrupacion => {
             const studentsInAgrupacion = students
                 .filter(s => agrupacion.studentIds.includes(s.id))
@@ -104,29 +108,13 @@ export const generatePlanningPDF = (viewModel: ReportViewModel) => {
                 body: studentRolesBody,
                 columns: [{ header: 'Alumno' }, { header: 'Puesto' }],
                 theme: 'grid',
-                didDrawPage,
+                didDrawPage: (data) => addFooter(doc, data, teacherData, instituteData),
                 margin: { top: 35, bottom: 20 }
             });
             lastY = (doc as any).lastAutoTable.finalY + 5;
         });
 
     } else { // 'normal' type
-        const participatingStudents = viewModel.participatingStudents;
-        const leaders = participatingStudents.map(student => ({ student, role: serviceRoles.find(r => r.id === service.studentRoles.find(sr => sr.studentId === student.id)?.roleId) })).filter(item => item.role?.type === 'leader').sort((a,b) => a.role!.name.localeCompare(b.role!.name));
-        const leadersBody = leaders.map(l => [{ content: l.role?.name, styles: { fontStyle: 'bold' } }, `${l.student.nombre} ${l.student.apellido1} ${l.student.apellido2}`]);
-
-        autoTable(doc, {
-            startY: 32,
-            head: [['Líderes del Servicio']],
-            body: leadersBody,
-            theme: 'striped',
-            headStyles: { fillColor: [220, 220, 220], textColor: 40, fontStyle: 'bold' },
-            didDrawPage,
-            margin: { top: 35, bottom: 20 }
-        });
-        
-        lastY = (doc as any).lastAutoTable.finalY + 8;
-
         const drawServiceSection = (area: 'comedor' | 'takeaway') => {
             const pageHeight = doc.internal.pageSize.getHeight();
             if (lastY > pageHeight - 40) { doc.addPage(); lastY = 35; }
@@ -158,7 +146,7 @@ export const generatePlanningPDF = (viewModel: ReportViewModel) => {
                     ],
                     theme: 'grid',
                     columnStyles: { 1: { halign: 'right' } },
-                    didDrawPage,
+                    didDrawPage: (data) => addFooter(doc, data, teacherData, instituteData),
                     margin: { top: 35, bottom: 20 }
                 });
                 lastY = (doc as any).lastAutoTable.finalY;

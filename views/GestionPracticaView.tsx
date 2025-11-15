@@ -406,6 +406,7 @@ const GestionPracticaView: React.FC<GestionPracticaViewProps> = ({
         }
 
         const isLocked = editedService.isLocked;
+        const principalRoles = serviceRoles.filter(role => role.type === 'leader');
 
         return (
             <div>
@@ -427,6 +428,24 @@ const GestionPracticaView: React.FC<GestionPracticaViewProps> = ({
                         {!isLocked && <button onClick={handleDelete} className="flex items-center bg-red-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-red-600 transition"><TrashIcon className="w-5 h-5" /></button>}
                     </div>
                 </header>
+
+                <div className="mb-6 p-4 bg-white rounded-lg shadow-sm border">
+                    <h4 className="text-md font-bold text-gray-700 mb-3">Puestos Principales del Servicio</h4>
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-6 gap-y-4">
+                        {principalRoles.map(role => {
+                            const assignment = editedService.studentRoles.find(sr => sr.roleId === role.id);
+                            const student = assignment ? students.find(s => s.id === assignment.studentId) : null;
+                            return (
+                                <div key={role.id} className="flex flex-col">
+                                    <span className="text-sm font-semibold text-gray-500">{role.name}</span>
+                                    <span className="text-md font-medium text-gray-800 truncate" title={student ? `${student.nombre} ${student.apellido1}` : 'Sin asignar'}>
+                                        {student ? `${student.nombre} ${student.apellido1} ${student.apellido2}` : <span className="italic text-gray-400">Sin asignar</span>}
+                                    </span>
+                                </div>
+                            )
+                        })}
+                    </div>
+                </div>
                 
                 {isLocked && (
                     <div className="mb-6 p-4 bg-yellow-100 border-l-4 border-yellow-500 text-yellow-800 rounded-md">
