@@ -329,22 +329,28 @@ const ServiceEvaluationView: React.FC<ServiceEvaluationViewProps> = ({ service, 
 
     const handleAddPreServiceDay = () => {
         const dateStr = prompt("Introduce la fecha para el nuevo día de pre-servicio (YYYY-MM-DD):", new Date().toISOString().split('T')[0]);
-        if (dateStr && /^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
-            deepCloneAndUpdate(draft => {
-                if (!draft.preService) {
-                    draft.preService = {};
-                }
-                if (!draft.preService[dateStr]) {
-                    const defaultName = `Pre-servicio ${new Date(dateStr + 'T12:00:00Z').toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' })}`;
-                    draft.preService[dateStr] = { name: defaultName, groupObservations: {}, individualEvaluations: {} };
-                } else {
-                     alert("Ya existe un día de pre-servicio para esta fecha.");
-                }
-            });
-            setActivePreServiceDate(dateStr);
-        } else if (dateStr) {
+        if (!dateStr) return; // User cancelled
+
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
             alert("Formato de fecha inválido.");
+            return;
         }
+
+        if (evaluation.preService && evaluation.preService[dateStr]) {
+            alert("Ya existe un día de pre-servicio para esta fecha.");
+            setActivePreServiceDate(dateStr); // Just switch to it
+            return;
+        }
+
+        deepCloneAndUpdate(draft => {
+            if (!draft.preService) {
+                draft.preService = {};
+            }
+            const defaultName = `Pre-servicio ${new Date(dateStr + 'T12:00:00Z').toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' })}`;
+            draft.preService[dateStr] = { name: defaultName, groupObservations: {}, individualEvaluations: {} };
+        });
+        
+        setActivePreServiceDate(dateStr);
     };
     
     const handleDeletePreServiceDay = (date: string) => {
@@ -474,35 +480,41 @@ const ServiceEvaluationView: React.FC<ServiceEvaluationViewProps> = ({ service, 
                         </div>
                      )}
 
-                    {activePreServiceDate && evaluation.preService[activePreServiceDate] && evaluationUnits.map(unit => {
-                        if(unit.students.length === 0) return null;
-                        return (
-                            <div key={unit.id} className="bg-white p-4 rounded-lg shadow-sm">
-                                <h3 className="text-xl font-bold mb-3 text-gray-700">{unit.name}</h3>
-                                
-                                <div className="mb-4">
-                                    <label htmlFor={`group-obs-${unit.id}`} className="block text-sm font-semibold text-gray-600 mb-1">Observaciones del Grupo</label>
-                                    <textarea
-                                        id={`group-obs-${unit.id}`}
-                                        value={evaluation.preService[activePreServiceDate]?.groupObservations[unit.id] || ''}
-                                        onChange={(e) => handlePreServiceGroupObservationChange(activePreServiceDate, unit.id, e.target.value)}
-                                        disabled={isLocked}
-                                        rows={3}
-                                        className="w-full p-2 text-sm border rounded-md bg-white disabled:bg-gray-100"
-                                        placeholder="Anotaciones sobre el comportamiento, limpieza, organización, etc. del grupo en general."
+                    {activePreServiceDate && evaluation.preService[activePreServiceDate] ? (
+                        evaluationUnits.map(unit => {
+                            if(unit.students.length === 0) return null;
+                            return (
+                                <div key={unit.id} className="bg-white p-4 rounded-lg shadow-sm">
+                                    <h3 className="text-xl font-bold mb-3 text-gray-700">{unit.name}</h3>
+                                    
+                                    <div className="mb-4">
+                                        <label htmlFor={`group-obs-${unit.id}`} className="block text-sm font-semibold text-gray-600 mb-1">Observaciones del Grupo</label>
+                                        <textarea
+                                            id={`group-obs-${unit.id}`}
+                                            value={evaluation.preService[activePreServiceDate]?.groupObservations[unit.id] || ''}
+                                            onChange={(e) => handlePreServiceGroupObservationChange(activePreServiceDate!, unit.id, e.target.value)}
+                                            disabled={isLocked}
+                                            rows={3}
+                                            className="w-full p-2 text-sm border rounded-md bg-white disabled:bg-gray-100"
+                                            placeholder="Anotaciones sobre el comportamiento, limpieza, organización, etc. del grupo en general."
+                                        />
+                                    </div>
+                                    
+                                    <PreServiceIndividualTable 
+                                        studentsInGroup={unit.students}
+                                        evaluationData={evaluation.preService[activePreServiceDate!]}
+                                        entryExitRecordsForWeek={entryExitRecordsForWeek}
+                                        onUpdate={(studentId, field, value, behaviorItemId) => handlePreServiceIndividualUpdate(activePreServiceDate!, studentId, field, value, behaviorItemId)}
+                                        isLocked={isLocked}
                                     />
                                 </div>
-                                
-                                <PreServiceIndividualTable 
-                                    studentsInGroup={unit.students}
-                                    evaluationData={evaluation.preService[activePreServiceDate]}
-                                    entryExitRecordsForWeek={entryExitRecordsForWeek}
-                                    onUpdate={(studentId, field, value, behaviorItemId) => handlePreServiceIndividualUpdate(activePreServiceDate, studentId, field, value, behaviorItemId)}
-                                    isLocked={isLocked}
-                                />
-                            </div>
-                        )
-                    })}
+                            );
+                        })
+                    ) : (
+                        <div className="text-center p-8 bg-white rounded-lg shadow-sm">
+                           <p className="text-gray-500">No hay un día de pre-servicio seleccionado. Por favor, añade o selecciona uno.</p>
+                        </div>
+                    )}
                 </div>
             )}
             
