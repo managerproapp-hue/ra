@@ -14,7 +14,8 @@ const AsignarAlumnosModal: React.FC<{
     onSave: (studentIds: string[]) => void;
     allStudents: Student[];
     initialStudentIds: string[];
-}> = ({ isOpen, onClose, onSave, allStudents, initialStudentIds }) => {
+    alreadyAssignedIds: Set<string>;
+}> = ({ isOpen, onClose, onSave, allStudents, initialStudentIds, alreadyAssignedIds }) => {
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set(initialStudentIds));
     const [searchTerm, setSearchTerm] = useState('');
 
@@ -42,13 +43,19 @@ const AsignarAlumnosModal: React.FC<{
                 <h3 className="text-xl font-bold mb-4">Asignar Alumnos</h3>
                 <input type="text" placeholder="Buscar alumnos..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full p-2 border rounded mb-4" />
                 <div className="flex-1 overflow-y-auto pr-2 grid grid-cols-1 md:grid-cols-2 gap-2">
-                    {filteredStudents.map(student => (
-                        <label key={student.id} className="flex items-center p-2 rounded-md hover:bg-gray-100 cursor-pointer">
-                            <input type="checkbox" checked={selectedIds.has(student.id)} onChange={() => handleToggle(student.id)} className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
-                            <img src={student.fotoUrl} alt="" className="w-8 h-8 rounded-full object-cover mx-3" />
-                            <span className="text-sm">{student.apellido1} {student.apellido2}, {student.nombre}</span>
-                        </label>
-                    ))}
+                    {filteredStudents.map(student => {
+                        const isAssignedElsewhere = alreadyAssignedIds.has(student.id);
+                        return (
+                            <label key={student.id} className={`flex items-center p-2 rounded-md hover:bg-gray-100 cursor-pointer ${isAssignedElsewhere ? 'opacity-70' : ''}`}>
+                                <input type="checkbox" checked={selectedIds.has(student.id)} onChange={() => handleToggle(student.id)} className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                                <img src={student.fotoUrl} alt="" className="w-8 h-8 rounded-full object-cover mx-3" />
+                                <span className="text-sm flex-1">{student.apellido1} {student.apellido2}, {student.nombre}</span>
+                                {isAssignedElsewhere && (
+                                    <span className="text-xs font-bold text-purple-600 bg-purple-100 px-2 py-0.5 rounded-full">Asignado</span>
+                                )}
+                            </label>
+                        );
+                    })}
                 </div>
                 <div className="flex justify-end gap-2 mt-4 pt-4 border-t">
                     <button onClick={onClose} className="px-4 py-2 bg-gray-200 rounded-md">Cancelar</button>
@@ -105,6 +112,14 @@ const PlanificacionAgrupaciones: React.FC<{
     };
     
     const editingAgrupacion = editedService.agrupaciones?.find(a => a.id === modalState.agrupacionId);
+
+    const assignedStudentIdsInService = useMemo(() => {
+        if (!editedService.agrupaciones || !modalState.agrupacionId) {
+            return new Set<string>();
+        }
+        const otherAgrupaciones = editedService.agrupaciones.filter(a => a.id !== modalState.agrupacionId);
+        return new Set<string>(otherAgrupaciones.flatMap(a => a.studentIds));
+    }, [editedService.agrupaciones, modalState.agrupacionId]);
 
     return (
         <div className="bg-white p-6 rounded-lg shadow-sm">
@@ -177,6 +192,7 @@ const PlanificacionAgrupaciones: React.FC<{
                     onSave={handleSaveModal}
                     allStudents={students}
                     initialStudentIds={editingAgrupacion.studentIds}
+                    alreadyAssignedIds={assignedStudentIdsInService}
                 />
             )}
         </div>
