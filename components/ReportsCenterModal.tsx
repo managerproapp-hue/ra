@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Service, ServiceEvaluation, ReportViewModel, Student } from '../types';
+import { Service, ServiceEvaluation, ReportViewModel, Student, PracticeGroup } from '../types';
 import { useAppContext } from '../context/AppContext';
 import { XIcon, DownloadIcon, FileTextIcon, UsersIcon } from './icons';
 import { generatePlanningPDF, generateTrackingSheetPDF, generateDetailedStudentServiceReportPDF, generateAllDetailedStudentReportsPDF, generateFullEvaluationReportPDF, generateAnalyticalEvaluationReportPDF } from '../services/reportGenerator';
@@ -64,20 +64,31 @@ const ReportsCenterModal: React.FC<ReportsCenterModalProps> = ({ service, evalua
             serviceDay: evaluation.serviceDay ?? { groupScores: {}, individualScores: {} },
         };
 
-        const assignedGroupIds = [...(normalizedService.assignedGroups.comedor || []), ...(normalizedService.assignedGroups.takeaway || [])];
-        const participatingGroups = practiceGroups.filter(g => assignedGroupIds.includes(g.id));
-        const participatingStudentIds = new Set(participatingGroups.flatMap(g => g.studentIds));
-        const participatingStudents = students.filter(s => participatingStudentIds.has(s.id))
-            .sort((a, b) => a.apellido1.localeCompare(b.apellido1));
-        
-        const groupedStudentsInService = practiceGroups
-            .filter(g => assignedGroupIds.includes(g.id))
-            .map(group => ({
-                group,
-                students: students.filter(s => group.studentIds.includes(s.id))
-                    .sort((a,b) => a.apellido1.localeCompare(b.apellido1))
-            }));
+        let participatingStudents: Student[] = [];
+        let groupedStudentsInService: { group: PracticeGroup; students: Student[] }[] = [];
 
+        if (service.type === 'agrupacion') {
+            const studentIds = new Set(service.agrupaciones?.flatMap(a => a.studentIds) || []);
+            participatingStudents = students
+                .filter(s => studentIds.has(s.id))
+                .sort((a, b) => a.apellido1.localeCompare(b.apellido1));
+            // groupedStudentsInService is not applicable for this service type
+        } else { // 'normal'
+            const assignedGroupIds = [...(normalizedService.assignedGroups.comedor || []), ...(normalizedService.assignedGroups.takeaway || [])];
+            const participatingGroups = practiceGroups.filter(g => assignedGroupIds.includes(g.id));
+            const participatingStudentIds = new Set(participatingGroups.flatMap(g => g.studentIds));
+            participatingStudents = students.filter(s => participatingStudentIds.has(s.id))
+                .sort((a, b) => a.apellido1.localeCompare(b.apellido1));
+            
+            groupedStudentsInService = practiceGroups
+                .filter(g => assignedGroupIds.includes(g.id))
+                .map(group => ({
+                    group,
+                    students: students.filter(s => group.studentIds.includes(s.id))
+                        .sort((a,b) => a.apellido1.localeCompare(b.apellido1))
+                }));
+        }
+        
         setViewModel({
             service: normalizedService,
             evaluation: normalizedEvaluation,
@@ -88,7 +99,7 @@ const ReportsCenterModal: React.FC<ReportsCenterModalProps> = ({ service, evalua
             instituteData,
             participatingStudents,
             groupedStudentsInService,
-            entryExitRecords, // Add entryExitRecords to the view model
+            entryExitRecords,
         });
         
     }, [service, evaluation, students, practiceGroups, serviceRoles, teacherData, instituteData, entryExitRecords]);

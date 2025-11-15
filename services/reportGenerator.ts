@@ -33,7 +33,7 @@ const addFooter = (doc: jsPDF, data: any, teacherData: TeacherData, instituteDat
 // --- Planning PDF ---
 
 export const generatePlanningPDF = (viewModel: ReportViewModel) => {
-    const { service, serviceRoles, groupedStudentsInService, participatingStudents, teacherData, instituteData } = viewModel;
+    const { service, serviceRoles, groupedStudentsInService, students, teacherData, instituteData } = viewModel;
     const doc = new jsPDF('p', 'mm', 'a4');
     let lastY = 0;
 
@@ -41,7 +41,6 @@ export const generatePlanningPDF = (viewModel: ReportViewModel) => {
         const doc = data.doc;
         const pageWidth = doc.internal.pageSize.getWidth();
         
-        // HEADER
         addImageToPdf(doc, instituteData.logo, PAGE_MARGIN, 10, 15, 15);
         addImageToPdf(doc, teacherData.logo, pageWidth - PAGE_MARGIN - 15, 10, 15, 15);
         
@@ -50,66 +49,126 @@ export const generatePlanningPDF = (viewModel: ReportViewModel) => {
         doc.setFontSize(10).setFont('helvetica', 'normal').setTextColor(100);
         doc.text(`Fecha: ${new Date(service.date).toLocaleDateString('es-ES')}`, pageWidth / 2, 24, { align: 'center' });
         
-        // FOOTER
         addFooter(doc, data, teacherData, instituteData);
     };
 
-    const leaders = participatingStudents.map(student => ({ student, role: serviceRoles.find(r => r.id === service.studentRoles.find(sr => sr.studentId === student.id)?.roleId) })).filter(item => item.role?.type === 'leader').sort((a,b) => a.role!.name.localeCompare(b.role!.name));
-    const leadersBody = leaders.map(l => [{ content: l.role?.name, styles: { fontStyle: 'bold' } }, `${l.student.nombre} ${l.student.apellido1} ${l.student.apellido2}`]);
-
-    autoTable(doc, {
-        startY: 32,
-        head: [['Líderes del Servicio']],
-        body: leadersBody,
-        theme: 'striped',
-        headStyles: { fillColor: [220, 220, 220], textColor: 40, fontStyle: 'bold' },
-        didDrawPage,
-        margin: { top: 35, bottom: 20 }
-    });
-    
-    lastY = (doc as any).lastAutoTable.finalY + 8;
-
-    const drawServiceSection = (area: 'comedor' | 'takeaway') => {
-        const pageHeight = doc.internal.pageSize.getHeight();
-        if (lastY > pageHeight - 40) { doc.addPage(); lastY = 35; }
-       
-        autoTable(doc, {
-            startY: lastY,
-            body: [[`SERVICIO DE ${area.toUpperCase()}`]],
-            theme: 'plain',
-            styles: { minCellHeight: 8, valign: 'middle', halign: 'center', fillColor: [230, 240, 230], fontStyle: 'bold', textColor: 40 }
-        });
-        lastY = (doc as any).lastAutoTable.finalY;
-
-        groupedStudentsInService.filter(g => service.assignedGroups[area].includes(g.group.id)).forEach(groupData => {
-            const elaborationsText = 'Elaboraciones:\n' + (service.elaborations[area].filter(e => e.responsibleGroupId === groupData.group.id).map(e => `- ${e.name}`).join('\n'));
-            const studentRolesBody = groupData.students.map(student => {
-                 const role = serviceRoles.find(r => r.id === service.studentRoles.find(sr => sr.studentId === student.id)?.roleId);
-                 return [`${student.apellido1} ${student.apellido2}, ${student.nombre}`, role?.name || ''];
+    if (service.type === 'agrupacion') {
+        const allAgrupacionStudents = new Map<string, Student>();
+        (service.agrupaciones || []).forEach(agrup => {
+            agrup.studentIds.forEach(studentId => {
+                if (!allAgrupacionStudents.has(studentId)) {
+                    const student = students.find(s => s.id === studentId);
+                    if (student) allAgrupacionStudents.set(studentId, student);
+                }
             });
-            
-            const tableHeightEstimate = 15 + (studentRolesBody.length * 7); // Estimate
-            if (lastY + tableHeightEstimate > pageHeight - 20) { doc.addPage(); lastY = 35; }
+        });
+
+        const leaders = Array.from(allAgrupacionStudents.values())
+            .map(student => ({
+                student,
+                role: serviceRoles.find(r => r.id === service.studentRoles.find(sr => sr.studentId === student.id)?.roleId)
+            }))
+            .filter(item => item.role?.type === 'leader')
+            .sort((a,b) => a.role!.name.localeCompare(b.role!.name));
+        
+        const leadersBody = leaders.map(l => [{ content: l.role?.name, styles: { fontStyle: 'bold' } }, `${l.student.nombre} ${l.student.apellido1} ${l.student.apellido2}`]);
+
+        autoTable(doc, {
+            startY: 32,
+            head: [['Líderes del Servicio']],
+            body: leadersBody,
+            theme: 'striped',
+            headStyles: { fillColor: [220, 220, 220], textColor: 40, fontStyle: 'bold' },
+            didDrawPage,
+            margin: { top: 35, bottom: 20 }
+        });
+        
+        lastY = (doc as any).lastAutoTable.finalY + 8;
+        
+        (service.agrupaciones || []).forEach(agrupacion => {
+            const studentsInAgrupacion = students
+                .filter(s => agrupacion.studentIds.includes(s.id))
+                .sort((a, b) => a.apellido1.localeCompare(b.apellido1));
+
+            const studentRolesBody = studentsInAgrupacion.map(student => {
+                const role = serviceRoles.find(r => r.id === service.studentRoles.find(sr => sr.studentId === student.id)?.roleId);
+                return [`${student.apellido1} ${student.apellido2}, ${student.nombre}`, role?.name || ''];
+            });
+
+            const tableHeightEstimate = 15 + (studentRolesBody.length * 7);
+            if (lastY + tableHeightEstimate > doc.internal.pageSize.getHeight() - 20) { doc.addPage(); lastY = 35; }
 
             autoTable(doc, {
                 startY: lastY,
-                body: [
-                    [{ content: `Grupo ${groupData.group.name}`, colSpan: 2, styles: { fontStyle: 'bold', fillColor: [245, 245, 245] } }],
-                    [{ content: elaborationsText, colSpan: 2, styles: { minCellHeight: 10, whiteSpace: 'pre-wrap' } }],
-                    ...studentRolesBody
-                ],
+                head: [[{ content: `Elaboración: ${agrupacion.name}`, colSpan: 2, styles: { fontStyle: 'bold', fillColor: [232, 245, 252], textColor: [26, 115, 232] } }]],
+                body: studentRolesBody,
+                columns: [{ header: 'Alumno' }, { header: 'Puesto' }],
                 theme: 'grid',
-                columnStyles: { 1: { halign: 'right' } },
                 didDrawPage,
                 margin: { top: 35, bottom: 20 }
             });
-            lastY = (doc as any).lastAutoTable.finalY;
+            lastY = (doc as any).lastAutoTable.finalY + 5;
         });
-        lastY += 8;
-    };
-    
-    drawServiceSection('comedor');
-    drawServiceSection('takeaway');
+
+    } else { // 'normal' type
+        const participatingStudents = viewModel.participatingStudents;
+        const leaders = participatingStudents.map(student => ({ student, role: serviceRoles.find(r => r.id === service.studentRoles.find(sr => sr.studentId === student.id)?.roleId) })).filter(item => item.role?.type === 'leader').sort((a,b) => a.role!.name.localeCompare(b.role!.name));
+        const leadersBody = leaders.map(l => [{ content: l.role?.name, styles: { fontStyle: 'bold' } }, `${l.student.nombre} ${l.student.apellido1} ${l.student.apellido2}`]);
+
+        autoTable(doc, {
+            startY: 32,
+            head: [['Líderes del Servicio']],
+            body: leadersBody,
+            theme: 'striped',
+            headStyles: { fillColor: [220, 220, 220], textColor: 40, fontStyle: 'bold' },
+            didDrawPage,
+            margin: { top: 35, bottom: 20 }
+        });
+        
+        lastY = (doc as any).lastAutoTable.finalY + 8;
+
+        const drawServiceSection = (area: 'comedor' | 'takeaway') => {
+            const pageHeight = doc.internal.pageSize.getHeight();
+            if (lastY > pageHeight - 40) { doc.addPage(); lastY = 35; }
+        
+            autoTable(doc, {
+                startY: lastY,
+                body: [[`SERVICIO DE ${area.toUpperCase()}`]],
+                theme: 'plain',
+                styles: { minCellHeight: 8, valign: 'middle', halign: 'center', fillColor: [230, 240, 230], fontStyle: 'bold', textColor: 40 }
+            });
+            lastY = (doc as any).lastAutoTable.finalY;
+
+            groupedStudentsInService.filter(g => service.assignedGroups[area].includes(g.group.id)).forEach(groupData => {
+                const elaborationsText = 'Elaboraciones:\n' + (service.elaborations[area].filter(e => e.responsibleGroupId === groupData.group.id).map(e => `- ${e.name}`).join('\n'));
+                const studentRolesBody = groupData.students.map(student => {
+                    const role = serviceRoles.find(r => r.id === service.studentRoles.find(sr => sr.studentId === student.id)?.roleId);
+                    return [`${student.apellido1} ${student.apellido2}, ${student.nombre}`, role?.name || ''];
+                });
+                
+                const tableHeightEstimate = 15 + (studentRolesBody.length * 7); // Estimate
+                if (lastY + tableHeightEstimate > pageHeight - 20) { doc.addPage(); lastY = 35; }
+
+                autoTable(doc, {
+                    startY: lastY,
+                    body: [
+                        [{ content: `Grupo ${groupData.group.name}`, colSpan: 2, styles: { fontStyle: 'bold', fillColor: [245, 245, 245] } }],
+                        [{ content: elaborationsText, colSpan: 2, styles: { minCellHeight: 10, whiteSpace: 'pre-wrap' } }],
+                        ...studentRolesBody
+                    ],
+                    theme: 'grid',
+                    columnStyles: { 1: { halign: 'right' } },
+                    didDrawPage,
+                    margin: { top: 35, bottom: 20 }
+                });
+                lastY = (doc as any).lastAutoTable.finalY;
+            });
+            lastY += 8;
+        };
+        
+        drawServiceSection('comedor');
+        drawServiceSection('takeaway');
+    }
 
     doc.save(`Planning_${service.name.replace(/ /g, '_')}.pdf`);
 };
@@ -207,7 +266,7 @@ export const generateTrackingSheetPDF = (viewModel: ReportViewModel) => {
 
 // --- Full Evaluation Report PDF ---
 export const generateFullEvaluationReportPDF = (viewModel: ReportViewModel) => {
-    const { service, evaluation, groupedStudentsInService, teacherData, instituteData } = viewModel;
+    const { service, evaluation, groupedStudentsInService, students, teacherData, instituteData } = viewModel;
     const doc = new jsPDF('l', 'mm', 'a4');
     
     const didDrawPage = (data: any) => {
@@ -222,38 +281,58 @@ export const generateFullEvaluationReportPDF = (viewModel: ReportViewModel) => {
         addFooter(doc, data, teacherData, instituteData);
     };
 
-    const participatingGroups = groupedStudentsInService.map(g => g.group);
-    const groupEvalHead = [['Criterio de Evaluación Grupal', ...participatingGroups.map(g => g.name)]];
-    const groupEvalBody: any[][] = GROUP_EVALUATION_ITEMS.map((item, index) => [item.label, ...participatingGroups.map(group => evaluation.serviceDay.groupScores[group.id]?.scores[index]?.toFixed(2) ?? '-')]);
-    const groupTotals = participatingGroups.map(group => (evaluation.serviceDay.groupScores[group.id]?.scores || []).reduce((sum, s) => sum + (s || 0), 0));
-    groupEvalBody.push([{ content: 'TOTAL', styles: { fontStyle: 'bold' } }, ...groupTotals.map(total => ({ content: `${total.toFixed(2)} / 10.00`, styles: { fontStyle: 'bold' } }))]);
-    groupEvalBody.push([{ content: 'Observaciones', styles: { fontStyle: 'bold' } }, ...participatingGroups.map(group => evaluation.serviceDay.groupScores[group.id]?.observations || '')]);
+    if (service.type === 'agrupacion') {
+        (service.agrupaciones || []).forEach((agrupacion, index) => {
+            if (index > 0) doc.addPage();
+            const studentsInGroup = students.filter(s => agrupacion.studentIds.includes(s.id));
+            if (studentsInGroup.length === 0) return;
 
-    autoTable(doc, { head: groupEvalHead, body: groupEvalBody, startY: 32, margin: { top: 30, bottom: 20 }, headStyles: { fillColor: [56, 161, 105] }, didDrawPage });
+            const studentHeaders = studentsInGroup.map(s => `${s.apellido1} ${s.nombre.charAt(0)}.`);
+            const individualEvalHead = [['Criterio de Evaluación Individual', ...studentHeaders]];
+            const individualEvalBody: any[][] = [];
+            
+            INDIVIDUAL_EVALUATION_ITEMS.forEach((item, itemIndex) => individualEvalBody.push([item.label, ...studentsInGroup.map(s => evaluation.serviceDay.individualScores[s.id]?.scores[itemIndex]?.toFixed(2) ?? '-')]));
+            const individualTotals = studentsInGroup.map(s => (evaluation.serviceDay.individualScores[s.id]?.scores || []).reduce((sum, score) => sum + (score || 0), 0));
+            individualEvalBody.push([{ content: 'TOTAL DÍA SERVICIO', styles: { fontStyle: 'bold' } }, ...individualTotals.map(total => ({ content: `${total.toFixed(2)} / 10.00`, styles: { fontStyle: 'bold' } }))]);
+            individualEvalBody.push([{ content: 'Observaciones', styles: { fontStyle: 'bold' } }, ...studentsInGroup.map(s => evaluation.serviceDay.individualScores[s.id]?.observations || '')]);
 
-    const preServiceDate = Object.keys(evaluation.preService)[0] || null;
+            autoTable(doc, { head: [[{ content: `Elaboración: ${agrupacion.name}`, colSpan: studentsInGroup.length + 1, styles: { halign: 'center', fillColor: [49, 130, 206], fontStyle: 'bold' } }]], body: [], startY: 32, margin: { top: 30, bottom: 20 }, didDrawPage });
+            autoTable(doc, { head: individualEvalHead, body: individualEvalBody, startY: (doc as any).lastAutoTable.finalY, margin: { top: 30, bottom: 20 }, headStyles: { fillColor: [74, 85, 104] }, didDrawPage });
+        });
+    } else {
+        const participatingGroups = groupedStudentsInService.map(g => g.group);
+        const groupEvalHead = [['Criterio de Evaluación Grupal', ...participatingGroups.map(g => g.name)]];
+        const groupEvalBody: any[][] = GROUP_EVALUATION_ITEMS.map((item, index) => [item.label, ...participatingGroups.map(group => evaluation.serviceDay.groupScores[group.id]?.scores[index]?.toFixed(2) ?? '-')]);
+        const groupTotals = participatingGroups.map(group => (evaluation.serviceDay.groupScores[group.id]?.scores || []).reduce((sum, s) => sum + (s || 0), 0));
+        groupEvalBody.push([{ content: 'TOTAL', styles: { fontStyle: 'bold' } }, ...groupTotals.map(total => ({ content: `${total.toFixed(2)} / 10.00`, styles: { fontStyle: 'bold' } }))]);
+        groupEvalBody.push([{ content: 'Observaciones', styles: { fontStyle: 'bold' } }, ...participatingGroups.map(group => evaluation.serviceDay.groupScores[group.id]?.observations || '')]);
 
-    groupedStudentsInService.forEach(groupData => {
-        doc.addPage();
-        const studentsInGroup = groupData.students;
-        const studentHeaders = studentsInGroup.map(s => `${s.apellido1} ${s.nombre.charAt(0)}.`);
-        const individualEvalHead = [['Criterio de Evaluación Individual', ...studentHeaders]];
-        const individualEvalBody: any[][] = [];
-        
-        individualEvalBody.push([{ content: `DÍA PREVIO (${preServiceDate ? new Date(preServiceDate).toLocaleDateString('es-ES') : 'N/A'})`, colSpan: studentsInGroup.length + 1, styles: { fillColor: [220, 220, 220], fontStyle: 'bold', textColor: 40 } }]);
-        const preServiceChecks = ['attendance', 'hasFichas', 'hasUniforme', 'hasMaterial'];
-        preServiceChecks.forEach(check => individualEvalBody.push([check, ...studentsInGroup.map(s => (preServiceDate ? (evaluation.preService[preServiceDate]?.individualEvaluations[s.id]?.[check as keyof typeof evaluation.preService[string]['individualEvaluations'][string]] ?? (check === 'attendance')) : false) ? '✔' : '✘')]));
-        PRE_SERVICE_BEHAVIOR_ITEMS.forEach(item => individualEvalBody.push([item.label, ...studentsInGroup.map(s => BEHAVIOR_RATING_MAP.find(r => r.value === (preServiceDate ? evaluation.preService[preServiceDate]?.individualEvaluations[s.id]?.behaviorScores[item.id] : null))?.symbol ?? '-')]));
+        autoTable(doc, { head: groupEvalHead, body: groupEvalBody, startY: 32, margin: { top: 30, bottom: 20 }, headStyles: { fillColor: [56, 161, 105] }, didDrawPage });
 
-        individualEvalBody.push([{ content: 'DÍA DE SERVICIO', colSpan: studentsInGroup.length + 1, styles: { fillColor: [220, 220, 220], fontStyle: 'bold', textColor: 40 } }]);
-        INDIVIDUAL_EVALUATION_ITEMS.forEach((item, index) => individualEvalBody.push([item.label, ...studentsInGroup.map(s => evaluation.serviceDay.individualScores[s.id]?.scores[index]?.toFixed(2) ?? '-')]));
-        const individualTotals = studentsInGroup.map(s => (evaluation.serviceDay.individualScores[s.id]?.scores || []).reduce((sum, score) => sum + (score || 0), 0));
-        individualEvalBody.push([{ content: 'TOTAL DÍA SERVICIO', styles: { fontStyle: 'bold' } }, ...individualTotals.map(total => ({ content: `${total.toFixed(2)} / 10.00`, styles: { fontStyle: 'bold' } }))]);
-        individualEvalBody.push([{ content: 'Observaciones', styles: { fontStyle: 'bold' } }, ...studentsInGroup.map(s => evaluation.serviceDay.individualScores[s.id]?.observations || '')]);
-        
-        autoTable(doc, { head: [[{ content: `Grupo ${groupData.group.name}`, colSpan: studentsInGroup.length + 1, styles: { halign: 'center', fillColor: [49, 130, 206], fontStyle: 'bold' } }]], body: [], startY: 32, margin: { top: 30, bottom: 20 }, didDrawPage });
-        autoTable(doc, { head: individualEvalHead, body: individualEvalBody, startY: (doc as any).lastAutoTable.finalY, margin: { top: 30, bottom: 20 }, headStyles: { fillColor: [74, 85, 104] }, didDrawPage });
-    });
+        const preServiceDate = Object.keys(evaluation.preService)[0] || null;
+
+        groupedStudentsInService.forEach(groupData => {
+            doc.addPage();
+            const studentsInGroup = groupData.students;
+            const studentHeaders = studentsInGroup.map(s => `${s.apellido1} ${s.nombre.charAt(0)}.`);
+            const individualEvalHead = [['Criterio de Evaluación Individual', ...studentHeaders]];
+            const individualEvalBody: any[][] = [];
+            
+            individualEvalBody.push([{ content: `DÍA PREVIO (${preServiceDate ? new Date(preServiceDate).toLocaleDateString('es-ES') : 'N/A'})`, colSpan: studentsInGroup.length + 1, styles: { fillColor: [220, 220, 220], fontStyle: 'bold', textColor: 40 } }]);
+            const preServiceChecks = ['attendance', 'hasFichas', 'hasUniforme', 'hasMaterial'];
+            preServiceChecks.forEach(check => individualEvalBody.push([check, ...studentsInGroup.map(s => (preServiceDate ? (evaluation.preService[preServiceDate]?.individualEvaluations[s.id]?.[check as keyof typeof evaluation.preService[string]['individualEvaluations'][string]] ?? (check === 'attendance')) : false) ? '✔' : '✘')]));
+            PRE_SERVICE_BEHAVIOR_ITEMS.forEach(item => individualEvalBody.push([item.label, ...studentsInGroup.map(s => BEHAVIOR_RATING_MAP.find(r => r.value === (preServiceDate ? evaluation.preService[preServiceDate]?.individualEvaluations[s.id]?.behaviorScores[item.id] : null))?.symbol ?? '-')]));
+
+            individualEvalBody.push([{ content: 'DÍA DE SERVICIO', colSpan: studentsInGroup.length + 1, styles: { fillColor: [220, 220, 220], fontStyle: 'bold', textColor: 40 } }]);
+            INDIVIDUAL_EVALUATION_ITEMS.forEach((item, index) => individualEvalBody.push([item.label, ...studentsInGroup.map(s => evaluation.serviceDay.individualScores[s.id]?.scores[index]?.toFixed(2) ?? '-')]));
+            const individualTotals = studentsInGroup.map(s => (evaluation.serviceDay.individualScores[s.id]?.scores || []).reduce((sum, score) => sum + (score || 0), 0));
+            individualEvalBody.push([{ content: 'TOTAL DÍA SERVICIO', styles: { fontStyle: 'bold' } }, ...individualTotals.map(total => ({ content: `${total.toFixed(2)} / 10.00`, styles: { fontStyle: 'bold' } }))]);
+            individualEvalBody.push([{ content: 'Observaciones', styles: { fontStyle: 'bold' } }, ...studentsInGroup.map(s => evaluation.serviceDay.individualScores[s.id]?.observations || '')]);
+            
+            autoTable(doc, { head: [[{ content: `Grupo ${groupData.group.name}`, colSpan: studentsInGroup.length + 1, styles: { halign: 'center', fillColor: [49, 130, 206], fontStyle: 'bold' } }]], body: [], startY: 32, margin: { top: 30, bottom: 20 }, didDrawPage });
+            autoTable(doc, { head: individualEvalHead, body: individualEvalBody, startY: (doc as any).lastAutoTable.finalY, margin: { top: 30, bottom: 20 }, headStyles: { fillColor: [74, 85, 104] }, didDrawPage });
+        });
+    }
 
     doc.save(`Evaluacion_${service.name.replace(/ /g, '_')}.pdf`);
 };
@@ -275,10 +354,6 @@ const _drawDetailedStudentReportPage = (doc: jsPDF, viewModel: ReportViewModel, 
         addFooter(doc, data, teacherData, instituteData);
     };
     
-    const studentGroup = practiceGroups.find(g => g.studentIds.includes(student.id));
-    autoTable(doc, { startY: 30, head: [['Resumen del Servicio']], body: [['Servicio:', service.name], ['Fecha:', new Date(service.date + 'T12:00:00Z').toLocaleDateString('es-ES')], ['Alumno:', `${student.apellido1} ${student.apellido2}, ${student.nombre}`], ['Grupo:', studentGroup ? studentGroup.name : 'No asignado']], theme: 'striped', headStyles: { fillColor: [74, 85, 104] }, didDrawPage, margin: { bottom: 20 } });
-    lastY = (doc as any).lastAutoTable.finalY;
-    
     const preServiceDate = Object.keys(evaluation.preService)[0] || null;
     const preServiceEval = preServiceDate ? evaluation.preService[preServiceDate]?.individualEvaluations[student.id] : null;
     const preServiceBody: any[][] = [];
@@ -288,8 +363,6 @@ const _drawDetailedStudentReportPage = (doc: jsPDF, viewModel: ReportViewModel, 
         PRE_SERVICE_BEHAVIOR_ITEMS.forEach(item => preServiceBody.push([item.label, BEHAVIOR_RATING_MAP.find(r => r.value === preServiceEval.behaviorScores[item.id])?.label ?? '-']));
         if (preServiceEval.observations) preServiceBody.push([{ content: 'Observaciones (Día Previo):', styles: { fontStyle: 'bold' } }, preServiceEval.observations]);
     } else { preServiceBody.push(['- Sin datos de pre-servicio -']); }
-    autoTable(doc, { startY: lastY + 8, head: [['Evaluación Individual - Día Previo']], body: preServiceBody, theme: 'grid', headStyles: { fillColor: [49, 130, 206] }, didDrawPage, margin: { bottom: 20 } });
-    lastY = (doc as any).lastAutoTable.finalY;
 
     const serviceDayEval = evaluation.serviceDay.individualScores[student.id];
     const serviceDayBody: any[][] = [];
@@ -298,18 +371,39 @@ const _drawDetailedStudentReportPage = (doc: jsPDF, viewModel: ReportViewModel, 
         if (serviceDayEval.attendance) INDIVIDUAL_EVALUATION_ITEMS.forEach((item, index) => serviceDayBody.push([item.label, `${serviceDayEval.scores[index]?.toFixed(2) ?? '-'} / ${item.maxScore.toFixed(2)}`]));
         if (serviceDayEval.observations) serviceDayBody.push([{ content: 'Observaciones (Día de Servicio):', styles: { fontStyle: 'bold' } }, serviceDayEval.observations]);
     } else { serviceDayBody.push(['- Sin datos de día de servicio -']); }
-    autoTable(doc, { startY: lastY + 8, head: [['Evaluación Individual - Día de Servicio']], body: serviceDayBody, theme: 'grid', headStyles: { fillColor: [49, 130, 206] }, didDrawPage, margin: { bottom: 20 } });
-    lastY = (doc as any).lastAutoTable.finalY;
-
-    if(studentGroup) {
-        const groupEval = evaluation.serviceDay.groupScores[studentGroup.id];
-        const groupBody: any[][] = groupEval ? GROUP_EVALUATION_ITEMS.map((item, index) => [item.label, `${groupEval.scores[index]?.toFixed(2) ?? '-'} / ${item.maxScore.toFixed(2)}`]) : [['- Sin datos de evaluación de grupo -']];
-        if (groupEval?.observations) groupBody.push([{ content: 'Observaciones Grupales:', styles: { fontStyle: 'bold' } }, groupEval.observations]);
-        autoTable(doc, { startY: lastY + 8, head: [[`Evaluación Grupal (${studentGroup.name})`]], body: groupBody, theme: 'grid', headStyles: { fillColor: [56, 161, 105] }, didDrawPage, margin: { bottom: 20 } });
-        lastY = (doc as any).lastAutoTable.finalY;
-    }
 
     const incidents = entryExitRecords.filter(rec => rec.studentId === studentId).map(rec => [rec.date, rec.type, rec.reason]);
+
+    if (service.type === 'agrupacion') {
+        const studentAgrupacion = service.agrupaciones?.find(a => a.studentIds.includes(student.id));
+        autoTable(doc, { startY: 30, head: [['Resumen del Servicio']], body: [['Servicio:', service.name], ['Fecha:', new Date(service.date + 'T12:00:00Z').toLocaleDateString('es-ES')], ['Alumno:', `${student.apellido1} ${student.apellido2}, ${student.nombre}`], ['Elaboración:', studentAgrupacion ? studentAgrupacion.name : 'No asignado']], theme: 'striped', headStyles: { fillColor: [74, 85, 104] }, didDrawPage, margin: { bottom: 20 } });
+        lastY = (doc as any).lastAutoTable.finalY;
+
+        autoTable(doc, { startY: lastY + 8, head: [['Evaluación Individual - Día Previo']], body: preServiceBody, theme: 'grid', headStyles: { fillColor: [49, 130, 206] }, didDrawPage, margin: { bottom: 20 } });
+        lastY = (doc as any).lastAutoTable.finalY;
+
+        autoTable(doc, { startY: lastY + 8, head: [['Evaluación Individual - Día de Servicio']], body: serviceDayBody, theme: 'grid', headStyles: { fillColor: [49, 130, 206] }, didDrawPage, margin: { bottom: 20 } });
+        lastY = (doc as any).lastAutoTable.finalY;
+    } else {
+        const studentGroup = practiceGroups.find(g => g.studentIds.includes(student.id));
+        autoTable(doc, { startY: 30, head: [['Resumen del Servicio']], body: [['Servicio:', service.name], ['Fecha:', new Date(service.date + 'T12:00:00Z').toLocaleDateString('es-ES')], ['Alumno:', `${student.apellido1} ${student.apellido2}, ${student.nombre}`], ['Grupo:', studentGroup ? studentGroup.name : 'No asignado']], theme: 'striped', headStyles: { fillColor: [74, 85, 104] }, didDrawPage, margin: { bottom: 20 } });
+        lastY = (doc as any).lastAutoTable.finalY;
+        
+        autoTable(doc, { startY: lastY + 8, head: [['Evaluación Individual - Día Previo']], body: preServiceBody, theme: 'grid', headStyles: { fillColor: [49, 130, 206] }, didDrawPage, margin: { bottom: 20 } });
+        lastY = (doc as any).lastAutoTable.finalY;
+
+        autoTable(doc, { startY: lastY + 8, head: [['Evaluación Individual - Día de Servicio']], body: serviceDayBody, theme: 'grid', headStyles: { fillColor: [49, 130, 206] }, didDrawPage, margin: { bottom: 20 } });
+        lastY = (doc as any).lastAutoTable.finalY;
+
+        if(studentGroup) {
+            const groupEval = evaluation.serviceDay.groupScores[studentGroup.id];
+            const groupBody: any[][] = groupEval ? GROUP_EVALUATION_ITEMS.map((item, index) => [item.label, `${groupEval.scores[index]?.toFixed(2) ?? '-'} / ${item.maxScore.toFixed(2)}`]) : [['- Sin datos de evaluación de grupo -']];
+            if (groupEval?.observations) groupBody.push([{ content: 'Observaciones Grupales:', styles: { fontStyle: 'bold' } }, groupEval.observations]);
+            autoTable(doc, { startY: lastY + 8, head: [[`Evaluación Grupal (${studentGroup.name})`]], body: groupBody, theme: 'grid', headStyles: { fillColor: [56, 161, 105] }, didDrawPage, margin: { bottom: 20 } });
+            lastY = (doc as any).lastAutoTable.finalY;
+        }
+    }
+    
     if (incidents.length > 0) autoTable(doc, { startY: lastY + 8, head: [['Incidencias Registradas (Historial Completo)']], body: incidents, theme: 'striped', headStyles: { fillColor: [221, 107, 32] }, didDrawPage, margin: { bottom: 20 } });
 };
 
@@ -360,44 +454,50 @@ export const generateAnalyticalEvaluationReportPDF = (viewModel: ReportViewModel
         addFooter(doc, data, teacherData, instituteData);
     };
 
-    // 1. Group Analysis
-    const participatingGroups = groupedStudentsInService.map(g => g.group);
-    const groupScores = participatingGroups.map(group => {
-        const scores = evaluation.serviceDay.groupScores[group.id]?.scores || [];
-        const total = scores.reduce((sum, s) => sum + (s || 0), 0);
-        return { group, scores, total };
-    }).sort((a, b) => b.total - a.total);
+    // 1. Group Analysis (Only for 'normal' services)
+    if (service.type === 'normal') {
+        const participatingGroups = groupedStudentsInService.map(g => g.group);
+        const groupScores = participatingGroups.map(group => {
+            const scores = evaluation.serviceDay.groupScores[group.id]?.scores || [];
+            const total = scores.reduce((sum, s) => sum + (s || 0), 0);
+            return { group, scores, total };
+        }).sort((a, b) => b.total - a.total);
 
-    const criteriaStats = GROUP_EVALUATION_ITEMS.map((item, index) => {
-        const scores = groupScores.map(gs => gs.scores[index]).filter(s => s !== null && s !== undefined) as number[];
-        return {
-            min: scores.length > 0 ? Math.min(...scores) : null,
-            max: scores.length > 0 ? Math.max(...scores) : null
-        };
-    });
-
-    const groupEvalHead = [['Rank', 'Grupo', ...GROUP_EVALUATION_ITEMS.map(i => i.label), 'Total']];
-    const groupEvalBody = groupScores.map((gs, rankIndex) => {
-        const row: any[] = [rankIndex + 1, gs.group.name];
-        gs.scores.forEach((score, scoreIndex) => {
-            const stat = criteriaStats[scoreIndex];
-            const cell: any = { content: score?.toFixed(2) ?? '-' };
-            if (score !== null && stat.min !== null && stat.max !== null) {
-                if (score === stat.max) cell.styles = { fillColor: [229, 245, 229] }; // Light green
-                if (score === stat.min) cell.styles = { fillColor: [254, 226, 226] }; // Light red
-            }
-            row.push(cell);
+        const criteriaStats = GROUP_EVALUATION_ITEMS.map((item, index) => {
+            const scores = groupScores.map(gs => gs.scores[index]).filter(s => s !== null && s !== undefined) as number[];
+            return {
+                min: scores.length > 0 ? Math.min(...scores) : null,
+                max: scores.length > 0 ? Math.max(...scores) : null
+            };
         });
-        row.push({ content: gs.total.toFixed(2), styles: { fontStyle: 'bold' } });
-        return row;
-    });
 
-    autoTable(doc, {
-        head: groupEvalHead, body: groupEvalBody, startY: 32, margin: { top: 30, bottom: 20 },
-        headStyles: { fillColor: [56, 161, 105], fontSize: 8 }, styles: { fontSize: 7, cellPadding: 1.5 },
-        didDrawPage
-    });
-    lastY = (doc as any).lastAutoTable.finalY;
+        const groupEvalHead = [['Rank', 'Grupo', ...GROUP_EVALUATION_ITEMS.map(i => i.label), 'Total']];
+        const groupEvalBody = groupScores.map((gs, rankIndex) => {
+            const row: any[] = [rankIndex + 1, gs.group.name];
+            gs.scores.forEach((score, scoreIndex) => {
+                const stat = criteriaStats[scoreIndex];
+                const cell: any = { content: score?.toFixed(2) ?? '-' };
+                if (score !== null && stat.min !== null && stat.max !== null) {
+                    if (score === stat.max) cell.styles = { fillColor: [229, 245, 229] }; // Light green
+                    if (score === stat.min) cell.styles = { fillColor: [254, 226, 226] }; // Light red
+                }
+                row.push(cell);
+            });
+            row.push({ content: gs.total.toFixed(2), styles: { fontStyle: 'bold' } });
+            return row;
+        });
+
+        autoTable(doc, {
+            head: groupEvalHead, body: groupEvalBody, startY: 32, margin: { top: 30, bottom: 20 },
+            headStyles: { fillColor: [56, 161, 105], fontSize: 8 }, styles: { fontSize: 7, cellPadding: 1.5 },
+            didDrawPage
+        });
+        lastY = (doc as any).lastAutoTable.finalY;
+    } else {
+         doc.setFontSize(10).setTextColor(100).text('El análisis de rendimiento grupal no aplica para servicios de agrupaciones.', PAGE_MARGIN, 32);
+         lastY = 40;
+    }
+
 
     // 2. Individual Analysis
     const individualPerformances = participatingStudents
