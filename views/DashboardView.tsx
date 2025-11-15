@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { 
     UsersIcon, 
@@ -45,7 +46,7 @@ const ActionCard: React.FC<{ icon: React.ElementType, title: string, description
 
 
 const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
-    const { students, practiceGroups, services, handleFileUpload: contextHandleFileUpload } = useAppContext();
+    const { students, practiceGroups, services, handleFileUpload: contextHandleFileUpload, teacherData } = useAppContext();
     const [loading, setLoading] = useState(false);
 
     const handleFileUpload = async (file: File) => {
@@ -67,8 +68,8 @@ const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
                     ¿Necesitas restaurar datos? Ve a <button onClick={() => onNavigate('gestion-app')} className="text-blue-500 hover:underline font-semibold">Gestión App</button> para usar una copia de seguridad.
                 </p>
                 <footer className="mt-12 text-center text-sm text-gray-500">
-                    <p>Desarrollado por Juan Codina Barranco</p>
-                    <p><a href="mailto:juan.codina@murciaeduca.es" className="hover:underline">juan.codina@murciaeduca.es</a></p>
+                    <p>Desarrollado por {teacherData.name}</p>
+                    <p><a href={`mailto:${teacherData.email}`} className="hover:underline">{teacherData.email}</a></p>
                 </footer>
             </div>
         )
@@ -105,8 +106,8 @@ const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
                 </div>
             </div>
             <footer className="mt-12 text-center text-sm text-gray-500">
-                <p>Desarrollado por Juan Codina Barranco</p>
-                <p><a href="mailto:juan.codina@murciaeduca.es" className="hover:underline">juan.codina@murciaeduca.es</a></p>
+                 <p>Desarrollado por {teacherData.name}</p>
+                 <p><a href={`mailto:${teacherData.email}`} className="hover:underline">{teacherData.email}</a></p>
             </footer>
         </div>
     );
