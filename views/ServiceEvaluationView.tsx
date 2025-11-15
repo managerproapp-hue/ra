@@ -267,6 +267,25 @@ const ServiceEvaluationView: React.FC<ServiceEvaluationViewProps> = ({ service, 
     const [activeTab, setActiveTab] = useState<'pre-service' | 'service-day'>('pre-service');
     const [activePreServiceDate, setActivePreServiceDate] = useState<string | null>(null);
 
+    const evaluationUnits = useMemo(() => {
+        if (service.type === 'agrupacion') {
+            return (service.agrupaciones || []).map(agrupacion => ({
+                id: agrupacion.id,
+                name: agrupacion.name,
+                students: students.filter(s => agrupacion.studentIds.includes(s.id)).sort((a,b) => a.apellido1.localeCompare(b.apellido1)),
+            }));
+        }
+        // 'normal' type
+        const groupIds = new Set([...(service.assignedGroups?.comedor || []), ...(service.assignedGroups?.takeaway || [])]);
+        return practiceGroups
+            .filter(pg => groupIds.has(pg.id))
+            .map(group => ({
+                id: group.id,
+                name: group.name,
+                students: students.filter(s => group.studentIds.includes(s.id)).sort((a,b) => a.apellido1.localeCompare(b.apellido1)),
+            }));
+    }, [service, students, practiceGroups]);
+
     const preServiceDates = useMemo(() => Object.keys(evaluation.preService || {}).sort((a,b) => new Date(a).getTime() - new Date(b).getTime()), [evaluation.preService]);
     
     useEffect(() => {
@@ -276,28 +295,6 @@ const ServiceEvaluationView: React.FC<ServiceEvaluationViewProps> = ({ service, 
             setActivePreServiceDate(null);
         }
     }, [preServiceDates, activePreServiceDate]);
-
-    const evaluationUnits = useMemo(() => {
-        if (service.type === 'agrupacion') {
-            return (service.agrupaciones || []).map(agrupacion => ({
-                id: agrupacion.id,
-                name: agrupacion.name,
-                students: students.filter(s => agrupacion.studentIds.includes(s.id)).sort((a,b) => a.apellido1.localeCompare(b.apellido1)),
-                type: 'agrupacion' as const
-            }));
-        }
-        // 'normal' type
-        const groupIds = new Set([...service.assignedGroups.comedor, ...service.assignedGroups.takeaway]);
-        return practiceGroups
-            .filter(pg => groupIds.has(pg.id))
-            .map(group => ({
-                id: group.id,
-                name: group.name,
-                students: students.filter(s => group.studentIds.includes(s.id)).sort((a,b) => a.apellido1.localeCompare(b.apellido1)),
-                type: 'group' as const
-            }));
-    }, [service, students, practiceGroups]);
-
 
     const entryExitRecordsForWeek = useMemo(() => {
         const serviceDate = new Date(service.date);
@@ -334,10 +331,14 @@ const ServiceEvaluationView: React.FC<ServiceEvaluationViewProps> = ({ service, 
         const dateStr = prompt("Introduce la fecha para el nuevo día de pre-servicio (YYYY-MM-DD):", new Date().toISOString().split('T')[0]);
         if (dateStr && /^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
             deepCloneAndUpdate(draft => {
-                if (!draft.preService) draft.preService = {};
+                if (!draft.preService) {
+                    draft.preService = {};
+                }
                 if (!draft.preService[dateStr]) {
                     const defaultName = `Pre-servicio ${new Date(dateStr + 'T12:00:00Z').toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' })}`;
                     draft.preService[dateStr] = { name: defaultName, groupObservations: {}, individualEvaluations: {} };
+                } else {
+                     alert("Ya existe un día de pre-servicio para esta fecha.");
                 }
             });
             setActivePreServiceDate(dateStr);
@@ -474,6 +475,7 @@ const ServiceEvaluationView: React.FC<ServiceEvaluationViewProps> = ({ service, 
                      )}
 
                     {activePreServiceDate && evaluation.preService[activePreServiceDate] && evaluationUnits.map(unit => {
+                        if(unit.students.length === 0) return null;
                         return (
                             <div key={unit.id} className="bg-white p-4 rounded-lg shadow-sm">
                                 <h3 className="text-xl font-bold mb-3 text-gray-700">{unit.name}</h3>
@@ -574,19 +576,22 @@ const ServiceEvaluationView: React.FC<ServiceEvaluationViewProps> = ({ service, 
                          </table>
                     </div>
 
-                    {evaluationUnits.map(unit => (
-                        <div key={unit.id} className="bg-white p-4 rounded-lg shadow-sm">
-                            <h3 className="text-xl font-bold mb-3 text-gray-700">Evaluación Individual - {unit.name}</h3>
-                            <ServiceDayIndividualEvaluationTable
-                                studentsInGroup={unit.students}
-                                evaluationData={evaluation.serviceDay.individualScores}
-                                onUpdate={handleServiceDayIndividualUpdate}
-                                handleNumericInputChange={handleNumericInputChange}
-                                entryExitRecordsForWeek={entryExitRecordsForWeek}
-                                isLocked={isLocked}
-                            />
-                        </div>
-                    ))}
+                    {evaluationUnits.map(unit => {
+                        if(unit.students.length === 0) return null;
+                        return(
+                            <div key={unit.id} className="bg-white p-4 rounded-lg shadow-sm">
+                                <h3 className="text-xl font-bold mb-3 text-gray-700">Evaluación Individual - {unit.name}</h3>
+                                <ServiceDayIndividualEvaluationTable
+                                    studentsInGroup={unit.students}
+                                    evaluationData={evaluation.serviceDay.individualScores}
+                                    onUpdate={handleServiceDayIndividualUpdate}
+                                    handleNumericInputChange={handleNumericInputChange}
+                                    entryExitRecordsForWeek={entryExitRecordsForWeek}
+                                    isLocked={isLocked}
+                                />
+                            </div>
+                        )
+                    })}
                  </div>
             )}
         </div>
