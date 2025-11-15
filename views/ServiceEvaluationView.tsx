@@ -321,7 +321,7 @@ const ServiceEvaluationView: React.FC<ServiceEvaluationViewProps> = ({ service, 
     const deepCloneAndUpdate = useCallback((updateFn: (draft: ServiceEvaluation) => void) => {
         onEvaluationChange(prev => {
             if (!prev) return null;
-            const newEval = JSON.parse(JSON.stringify(prev));
+            const newEval = JSON.parse(JSON.stringify(prev)) as ServiceEvaluation;
             updateFn(newEval);
             return newEval;
         });

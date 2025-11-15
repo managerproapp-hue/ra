@@ -324,6 +324,21 @@ const RAView: React.FC = () => {
         else setLocalCriterios(prev => ({ ...prev, [id]: { ...prev[id], ponderacion: numValue } }));
     };
 
+    // FIX: Add explicit type casting for Object.values to fix TypeScript errors.
+    const areWeightsValid = useMemo(() => {
+        if (!isEditingWeights) return true;
+        const raArray = Object.values(localRAs) as ResultadoAprendizaje[];
+        const totalRAWeight = raArray.reduce((sum, ra) => sum + (ra.ponderacion || 0), 0);
+        if (totalRAWeight !== 100) return false;
+        for (const ra of raArray) {
+            if (ra.criteriosEvaluacion.length > 0) {
+                const totalCriteriaWeight = ra.criteriosEvaluacion.reduce((sum, critId) => sum + (localCriterios[critId]?.ponderacion || 0), 0);
+                if (totalCriteriaWeight !== 100) return false;
+            }
+        }
+        return true;
+    }, [isEditingWeights, localRAs, localCriterios]);
+
     const handleSaveWeights = () => {
         setResultadosAprendizaje(localRAs);
         setCriteriosEvaluacion(localCriterios);
@@ -341,6 +356,8 @@ const RAView: React.FC = () => {
     const sourceCriterios = isEditingWeights ? localCriterios : criteriosEvaluacion;
     const totalRAPonderacion = useMemo(() => (Object.values(sourceRAs) as ResultadoAprendizaje[]).reduce((sum, ra) => sum + (ra.ponderacion || 0), 0), [sourceRAs]);
     const totalRAColor = totalRAPonderacion === 100 ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800';
+    const totalRAText = totalRAPonderacion === 100 ? `Suma Total RAs: ${totalRAPonderacion}%` : `Suma Total RAs: ${totalRAPonderacion}% (Debe ser 100%)`;
+
 
     return (
         <div>
@@ -350,10 +367,10 @@ const RAView: React.FC = () => {
                     <p className="text-gray-500 mt-1">Define y gestiona la estructura académica de RAs, criterios y sus asociaciones.</p>
                 </div>
                 <div className="flex items-center space-x-4">
-                    <div className={`px-4 py-2 text-sm font-bold rounded-lg ${totalRAColor}`}>Suma Total RAs: {totalRAPonderacion}%</div>
+                    <div className={`px-4 py-2 text-sm font-bold rounded-lg ${totalRAColor}`}>{totalRAText}</div>
                     {isEditingWeights ? (
                         <div className="flex items-center space-x-2">
-                            <button onClick={handleSaveWeights} className="flex items-center bg-green-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-green-600 transition"><SaveIcon className="w-5 h-5 mr-1" />Guardar</button>
+                            <button onClick={handleSaveWeights} disabled={!areWeightsValid} className={`flex items-center bg-green-500 text-white px-4 py-2 rounded-lg font-semibold transition ${!areWeightsValid ? 'bg-gray-400 cursor-not-allowed' : 'hover:bg-green-600'}`}><SaveIcon className="w-5 h-5 mr-1" />Guardar</button>
                             <button onClick={handleCancelEdit} className="flex items-center bg-gray-200 text-gray-800 px-4 py-2 rounded-lg font-semibold hover:bg-gray-300 transition"><XIcon className="w-5 h-5 mr-1" />Cancelar</button>
                         </div>
                     ) : (
@@ -370,7 +387,7 @@ const RAView: React.FC = () => {
                 <h4 className="font-bold">Lógica de Ponderación:</h4>
                 <ul className="list-disc list-inside ml-4 mt-1">
                     <li>La <strong>Suma Total de los RAs</strong> debe ser igual al <strong>100%</strong> para cubrir la nota del módulo.</li>
-                    <li>La <strong>Suma de los Criterios</strong> dentro de <strong>CADA RA</strong> debe ser igual al <strong>100%</strong> para repartir el peso de ese RA.</li>
+                    <li>La <strong>Suma de los Criterios</strong> dentro de <strong>CADA RA</strong> debe ser igual al <strong>100%</strong> (si tiene criterios definidos).</li>
                 </ul>
             </div>
             
@@ -378,7 +395,8 @@ const RAView: React.FC = () => {
                 {(Object.values(sourceRAs) as ResultadoAprendizaje[]).sort((a,b) => a.nombre.localeCompare(b.nombre)).map(ra => {
                     const isExpanded = expandedRAs.has(ra.id);
                     const ponderacionTotalCriterios = ra.criteriosEvaluacion.reduce((s, cId) => s + (sourceCriterios[cId]?.ponderacion || 0), 0);
-                    const ponderacionRAColor = ra.ponderacion === ponderacionTotalCriterios ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800';
+                    const criteriaSumColor = ponderacionTotalCriterios === 100 || ra.criteriosEvaluacion.length === 0 ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800';
+                    const criteriaSumText = ra.criteriosEvaluacion.length === 0 ? 'Σ Criterios: N/A' : `Σ Criterios: ${ponderacionTotalCriterios}%`;
 
                     return (
                         <div key={ra.id} className="bg-white rounded-lg shadow-sm">
@@ -391,9 +409,9 @@ const RAView: React.FC = () => {
                                         {isEditingWeights ? (
                                             <input type="number" value={ra.ponderacion} onChange={e => handlePonderacionChange('ra', ra.id, e.target.value)} className="w-20 p-1 text-center border rounded-md"/>
                                         ) : (
-                                            <span className={`px-2 py-0.5 text-xs font-semibold rounded-full ${ponderacionRAColor}`}>RA: {ra.ponderacion}%</span>
+                                            <span className={`px-2 py-0.5 text-xs font-semibold rounded-full`}>RA: {ra.ponderacion}%</span>
                                         )}
-                                        <span className={`px-2 py-0.5 text-xs font-semibold rounded-full ${ponderacionRAColor}`}>Σ Criterios: {ponderacionTotalCriterios}%</span>
+                                        <span className={`px-2 py-0.5 text-xs font-semibold rounded-full ${criteriaSumColor}`}>{criteriaSumText}</span>
                                     </div>
                                     <p className="text-sm text-gray-500 mt-1">{ra.descripcion}</p>
                                 </div>
